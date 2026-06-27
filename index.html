@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+<title>루틴 다이어리</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" />
+<style>
+  :root {
+    --bg: #ffffff;
+    --surface: #f7f7f5;
+    --surface2: #efefed;
+    --border: rgba(0,0,0,0.1);
+    --border-strong: rgba(0,0,0,0.18);
+    --text: #1a1a18;
+    --text-secondary: #5f5e5a;
+    --text-muted: #888780;
+    --accent: #378ADD;
+    --green: #1D9E75;
+    --red: #E24B4A;
+    --radius: 8px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1c1c1a;
+      --surface: #252523;
+      --surface2: #2e2e2b;
+      --border: rgba(255,255,255,0.1);
+      --border-strong: rgba(255,255,255,0.18);
+      --text: #f0ede8;
+      --text-secondary: #b4b2a9;
+      --text-muted: #888780;
+    }
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+  .app { max-width: 480px; margin: 0 auto; min-height: 100vh; display: flex; flex-direction: column; position: relative; }
+  .view { display: none; flex: 1; flex-direction: column; }
+  .view.active { display: flex; }
+
+  /* ── 공통 헤더 ── */
+  .hd { display: flex; align-items: center; gap: 8px; padding: 1rem 1rem 0.75rem; border-bottom: 0.5px solid var(--border); flex-shrink: 0; }
+  .hd-title { font-size: 16px; font-weight: 500; flex: 1; }
+  .icon-btn { width: 30px; height: 30px; border-radius: var(--radius); border: 0.5px solid var(--border); background: transparent; cursor: pointer; display: flex; align-items: center; justify-content: center; color: var(--text-secondary); font-size: 16px; flex-shrink: 0; }
+  .icon-btn:hover { background: var(--surface); }
+
+  /* ── 탭바 ── */
+  .tab-bar { display: flex; border-top: 0.5px solid var(--border); background: var(--bg); flex-shrink: 0; }
+  .tab-btn { flex: 1; padding: 10px 0; display: flex; flex-direction: column; align-items: center; gap: 3px; cursor: pointer; border: none; background: transparent; color: var(--text-muted); font-size: 10px; font-family: inherit; }
+  .tab-btn i { font-size: 20px; }
+  .tab-btn.active { color: var(--accent); }
+
+  /* ── 캘린더 ── */
+  .cal-header { display: flex; align-items: center; justify-content: space-between; padding: 1rem 1rem 0.75rem; border-bottom: 0.5px solid var(--border); flex-shrink: 0; }
+  .cal-title { font-size: 18px; font-weight: 500; }
+  .cal-nav { display: flex; gap: 6px; }
+  .weekday-row { display: grid; grid-template-columns: repeat(7,1fr); padding: 0.5rem 0.75rem 0; }
+  .wd { text-align: center; font-size: 11px; color: var(--text-muted); padding: 4px 0; font-weight: 500; }
+  .cal-grid { display: grid; grid-template-columns: repeat(7,1fr); padding: 0.25rem 0.75rem 1rem; gap: 3px; overflow-y: auto; }
+  .cal-day { aspect-ratio: 1; border-radius: var(--radius); display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; min-height: 40px; gap: 3px; transition: background .15s; }
+  .cal-day:hover:not(.empty) { background: var(--surface); }
+  .cal-day.empty { cursor: default; }
+  .cal-day.today .dn { width: 24px; height: 24px; border-radius: 50%; background: var(--text); color: var(--bg); display: flex; align-items: center; justify-content: center; }
+  .dn { font-size: 13px; line-height: 1; }
+  .cal-day.empty .dn { color: var(--text-muted); }
+  .dot-row { display: flex; gap: 2px; min-height: 6px; flex-wrap: wrap; justify-content: center; }
+  .dot { width: 5px; height: 5px; border-radius: 50%; }
+  .dot-done { background: var(--green); }
+  .dot-skip { background: var(--border-strong); }
+
+  /* ── 데일리 ── */
+  .prog-wrap { padding: 0.75rem 1rem; border-bottom: 0.5px solid var(--border); flex-shrink: 0; }
+  .prog-label { display: flex; justify-content: space-between; font-size: 12px; color: var(--text-secondary); margin-bottom: 6px; }
+  .prog-track { height: 4px; background: var(--surface2); border-radius: 2px; overflow: hidden; }
+  .prog-fill { height: 100%; background: var(--green); border-radius: 2px; transition: width .3s; }
+  .routines-list { flex: 1; overflow-y: auto; }
+  .routine-item { display: flex; align-items: center; gap: 12px; padding: 11px 1rem; cursor: pointer; border-bottom: 0.5px solid var(--border); transition: background .12s; }
+  .routine-item:hover { background: var(--surface); }
+  .r-icon { font-size: 18px; width: 28px; text-align: center; flex-shrink: 0; }
+  .r-name { flex: 1; font-size: 15px; }
+  .check-circle { width: 22px; height: 22px; border-radius: 50%; border: 1.5px solid var(--border-strong); display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all .15s; }
+  .check-circle.done { background: var(--green); border-color: var(--green); color: #fff; }
+  .gratitude-section { padding: 1rem; border-top: 0.5px solid var(--border); flex-shrink: 0; }
+  .g-label { font-size: 12px; color: var(--text-muted); margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+  .g-textarea { width: 100%; border: 0.5px solid var(--border); border-radius: var(--radius); background: var(--surface); color: var(--text); font-family: inherit; font-size: 14px; line-height: 1.6; padding: 10px 12px; resize: none; min-height: 80px; }
+  .g-textarea:focus { outline: none; border-color: var(--accent); }
+  .g-textarea::placeholder { color: var(--text-muted); }
+  .primary-btn { margin-top: 8px; width: 100%; padding: 10px; background: var(--text); color: var(--bg); border: none; border-radius: var(--radius); font-size: 14px; font-weight: 500; cursor: pointer; font-family: inherit; }
+  .primary-btn:hover { opacity: .85; }
+
+  /* ── 편집 ── */
+  .edit-scroll { flex: 1; overflow-y: auto; }
+  .edit-row { display: flex; align-items: center; gap: 8px; padding: 8px 1rem; border-bottom: 0.5px solid var(--border); background: var(--bg); transition: background .12s; }
+  .edit-row.drag-over { background: var(--surface); }
+  .drag-handle { color: var(--text-muted); font-size: 20px; cursor: grab; flex-shrink: 0; touch-action: none; }
+  .edit-icon-btn { width: 36px; height: 36px; border-radius: var(--radius); border: 0.5px solid var(--border); background: var(--surface); cursor: pointer; font-size: 20px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .edit-name-input { flex: 1; border: 0.5px solid var(--border); border-radius: var(--radius); background: var(--surface); color: var(--text); font-family: inherit; font-size: 14px; padding: 6px 10px; height: 36px; }
+  .edit-name-input:focus { outline: none; border-color: var(--accent); }
+  .del-btn { width: 28px; height: 28px; border-radius: var(--radius); border: none; background: transparent; color: var(--text-muted); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
+  .del-btn:hover { color: var(--red); background: #fcebeb; }
+  .add-row-btn { display: flex; align-items: center; gap: 8px; padding: 11px 1rem; color: var(--accent); font-size: 14px; cursor: pointer; border: none; background: transparent; width: 100%; font-family: inherit; }
+  .add-row-btn:hover { background: var(--surface); }
+  .edit-footer { padding: 1rem; flex-shrink: 0; border-top: 0.5px solid var(--border); }
+
+  /* ── 이모지 피커 ── */
+  .emoji-overlay { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 480px; background: var(--bg); border-top: 0.5px solid var(--border); z-index: 100; padding: 14px 1rem 1.5rem; display: none; }
+  .emoji-overlay-title { font-size: 13px; color: var(--text-secondary); margin-bottom: 10px; }
+  .emoji-grid { display: grid; grid-template-columns: repeat(8,1fr); gap: 6px; }
+  .emoji-cell { height: 40px; display: flex; align-items: center; justify-content: center; font-size: 22px; border-radius: var(--radius); cursor: pointer; transition: background .12s; }
+  .emoji-cell:hover { background: var(--surface); }
+  .emoji-cancel { margin-top: 12px; width: 100%; padding: 9px; border: 0.5px solid var(--border); border-radius: var(--radius); background: transparent; color: var(--text-secondary); font-size: 13px; cursor: pointer; font-family: inherit; }
+
+  /* ── 통계 ── */
+  .stats-scroll { flex: 1; overflow-y: auto; padding-bottom: 1rem; }
+  .stats-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 1rem; }
+  .stat-card { background: var(--surface); border-radius: var(--radius); padding: 12px; }
+  .stat-lbl { font-size: 11px; color: var(--text-muted); margin-bottom: 4px; }
+  .stat-val { font-size: 22px; font-weight: 500; }
+  .stat-sub { font-size: 11px; color: var(--text-secondary); margin-top: 2px; }
+  .routine-stats { padding: 0 1rem; }
+  .rst-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 0.5px solid var(--border); }
+  .rst-icon { font-size: 16px; width: 22px; text-align: center; flex-shrink: 0; }
+  .rst-name { flex: 1; font-size: 13px; }
+  .rst-bar-wrap { width: 70px; height: 4px; background: var(--surface2); border-radius: 2px; overflow: hidden; }
+  .rst-bar { height: 100%; background: var(--green); border-radius: 2px; }
+  .rst-pct { font-size: 12px; color: var(--text-secondary); min-width: 30px; text-align: right; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ── 캘린더 ── -->
+  <div id="view-cal" class="view active">
+    <div class="cal-header">
+      <span class="cal-title" id="cal-title"></span>
+      <div class="cal-nav">
+        <button class="icon-btn" onclick="changeMonth(-1)" aria-label="이전 달"><i class="ti ti-chevron-left"></i></button>
+        <button class="icon-btn" onclick="changeMonth(1)" aria-label="다음 달"><i class="ti ti-chevron-right"></i></button>
+      </div>
+    </div>
+    <div class="weekday-row">
+      <div class="wd">월</div><div class="wd">화</div><div class="wd">수</div><div class="wd">목</div>
+      <div class="wd">금</div><div class="wd" style="color:var(--red)">토</div><div class="wd" style="color:var(--red)">일</div>
+    </div>
+    <div class="cal-grid" id="cal-grid"></div>
+    <div class="tab-bar">
+      <button class="tab-btn active" onclick="showView('cal')"><i class="ti ti-calendar"></i>캘린더</button>
+      <button class="tab-btn" onclick="showView('edit')"><i class="ti ti-settings"></i>루틴 편집</button>
+      <button class="tab-btn" onclick="showView('stats')"><i class="ti ti-chart-bar"></i>통계</button>
+    </div>
+  </div>
+
+  <!-- ── 데일리 ── -->
+  <div id="view-daily" class="view">
+    <div class="hd">
+      <button class="icon-btn" onclick="showView('cal')" aria-label="뒤로"><i class="ti ti-arrow-left"></i></button>
+      <span class="hd-title" id="daily-date-label"></span>
+    </div>
+    <div class="prog-wrap">
+      <div class="prog-label">
+        <span id="prog-count">달성 0/0</span>
+        <span id="prog-pct" style="color:var(--green);font-weight:500">0%</span>
+      </div>
+      <div class="prog-track"><div class="prog-fill" id="prog-fill" style="width:0%"></div></div>
+    </div>
+    <div class="routines-list" id="routines-list"></div>
+    <div class="gratitude-section">
+      <div class="g-label"><i class="ti ti-heart" style="font-size:14px;color:#D4537E"></i>감사일기</div>
+      <textarea class="g-textarea" id="gratitude-text" placeholder="오늘 감사한 일을 자유롭게 적어보세요…" rows="4"></textarea>
+      <button class="primary-btn" onclick="saveDay()">저장</button>
+    </div>
+  </div>
+
+  <!-- ── 루틴 편집 ── -->
+  <div id="view-edit" class="view">
+    <div class="hd">
+      <button class="icon-btn" onclick="showView('cal')" aria-label="뒤로"><i class="ti ti-arrow-left"></i></button>
+      <span class="hd-title">루틴 편집</span>
+    </div>
+    <div class="edit-scroll">
+      <div id="edit-list"></div>
+      <button class="add-row-btn" onclick="addRoutine()"><i class="ti ti-plus" style="font-size:16px"></i> 루틴 추가</button>
+    </div>
+    <div class="edit-footer">
+      <button class="primary-btn" onclick="saveRoutines()">저장하고 나가기</button>
+    </div>
+  </div>
+
+  <!-- ── 통계 ── -->
+  <div id="view-stats" class="view">
+    <div class="hd">
+      <button class="icon-btn" onclick="showView('cal')" aria-label="뒤로"><i class="ti ti-arrow-left"></i></button>
+      <span class="hd-title" id="stats-month-label"></span>
+    </div>
+    <div class="stats-scroll">
+      <div class="stats-cards" id="stats-cards"></div>
+      <div class="routine-stats" id="routine-stats"></div>
+    </div>
+    <div class="tab-bar">
+      <button class="tab-btn" onclick="showView('cal')"><i class="ti ti-calendar"></i>캘린더</button>
+      <button class="tab-btn" onclick="showView('edit')"><i class="ti ti-settings"></i>루틴 편집</button>
+      <button class="tab-btn active" onclick="showView('stats')"><i class="ti ti-chart-bar"></i>통계</button>
+    </div>
+  </div>
+
+  <!-- ── 이모지 피커 ── -->
+  <div id="emoji-overlay" class="emoji-overlay">
+    <div class="emoji-overlay-title">아이콘 선택</div>
+    <div class="emoji-grid" id="emoji-grid"></div>
+    <button class="emoji-cancel" onclick="closeEmojiPicker()">취소</button>
+  </div>
+
+</div>
+<script>
+const EMOJI_OPTIONS = ['🏅','🧘','💚','📚','📝','🗂','🏃','💪','🧠','📖','✍️','🎯','🌿','💡','🔥','⭐','🌙','☀️','🍎','💧','🎵','🖊️','📊','💰','🏠','🗺️','🧭','📅','⏰','🌱','🎪','🏋️','🧗','🚴','🧹','🛁','🥗','🍵','🙏','✅'];
+const DEFAULT_ROUTINES = [
+  {id:'goal',icon:'🏅',name:'목표, 실적, 감사일기'},
+  {id:'exercise',icon:'🧘',name:'운동'},
+  {id:'routine',icon:'💚',name:'루티니'},
+  {id:'reading',icon:'📚',name:'독독'},
+  {id:'market',icon:'📝',name:'시세'},
+  {id:'report',icon:'🗂',name:'임보'},
+];
+const WD=['월','화','수','목','금','토','일'];
+const MO=['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
+
+let state={}, routines=[], curYear, curMonth, curDay;
+let editTemp=[], emojiTargetIdx=-1, dragIdx=-1, dragEl=null;
+
+function loadState(){
+  try{ state=JSON.parse(localStorage.getItem('diary_v2')||'{}'); }catch(e){state={};}
+  try{
+    const saved=localStorage.getItem('diary_routines');
+    routines=saved?JSON.parse(saved):JSON.parse(JSON.stringify(DEFAULT_ROUTINES));
+  }catch(e){routines=JSON.parse(JSON.stringify(DEFAULT_ROUTINES));}
+}
+function saveState(){ try{localStorage.setItem('diary_v2',JSON.stringify(state));}catch(e){} }
+function saveRoutineStore(){ try{localStorage.setItem('diary_routines',JSON.stringify(routines));}catch(e){} }
+function dayKey(y,m,d){ return `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`; }
+function getDay(y,m,d){ const k=dayKey(y,m,d); return state[k]||{checks:{},gratitude:''}; }
+function setDay(y,m,d,data){ state[dayKey(y,m,d)]=data; saveState(); }
+
+function showView(v){
+  document.querySelectorAll('.view').forEach(el=>el.classList.remove('active'));
+  document.getElementById('view-'+v).classList.add('active');
+  if(v==='cal') renderCalendar();
+  if(v==='stats') renderStats();
+  if(v==='edit') renderEditView();
+}
+function changeMonth(d){ curMonth+=d; if(curMonth<0){curYear--;curMonth=11;} if(curMonth>11){curYear++;curMonth=0;} renderCalendar(); }
+
+function renderCalendar(){
+  document.getElementById('cal-title').textContent=`${String(curYear).slice(2)}년 ${MO[curMonth]}`;
+  const grid=document.getElementById('cal-grid');
+  grid.innerHTML='';
+  const today=new Date();
+  let startDow=new Date(curYear,curMonth,1).getDay();
+  startDow=startDow===0?6:startDow-1;
+  const days=new Date(curYear,curMonth+1,0).getDate();
+  for(let i=0;i<startDow;i++){
+    const el=document.createElement('div'); el.className='cal-day empty';
+    el.innerHTML='<span class="dn"></span>'; grid.appendChild(el);
+  }
+  for(let d=1;d<=days;d++){
+    const el=document.createElement('div'); el.className='cal-day';
+    const isToday=today.getFullYear()===curYear&&today.getMonth()===curMonth&&today.getDate()===d;
+    if(isToday) el.classList.add('today');
+    const dd=getDay(curYear,curMonth,d);
+    const hasAny=Object.keys(dd.checks).length>0;
+    let dots='';
+    if(hasAny) routines.forEach(r=>{ dots+=`<div class="dot ${dd.checks[r.id]?'dot-done':'dot-skip'}"></div>`; });
+    el.innerHTML=`<span class="dn">${d}</span><div class="dot-row">${dots}</div>`;
+    el.onclick=()=>openDay(d);
+    grid.appendChild(el);
+  }
+}
+
+function openDay(d){
+  curDay=d;
+  const dateObj=new Date(curYear,curMonth,d);
+  const dow=WD[dateObj.getDay()===0?6:dateObj.getDay()-1];
+  document.getElementById('daily-date-label').textContent=`${String(curYear).slice(2)}년 ${curMonth+1}월 ${d}일 (${dow})`;
+  const dd=getDay(curYear,curMonth,d);
+  document.getElementById('gratitude-text').value=dd.gratitude||'';
+  renderRoutines(dd);
+  showView('daily');
+}
+
+function renderRoutines(dd){
+  const list=document.getElementById('routines-list');
+  list.innerHTML='';
+  routines.forEach(r=>{
+    const done=!!dd.checks[r.id];
+    const item=document.createElement('div'); item.className='routine-item';
+    item.innerHTML=`<span class="r-icon">${r.icon}</span><span class="r-name">${r.name}</span><div class="check-circle ${done?'done':''}">${done?'<i class="ti ti-check" style="font-size:12px;"></i>':''}</div>`;
+    item.onclick=()=>toggleRoutine(r.id);
+    list.appendChild(item);
+  });
+  updateProgress(dd);
+}
+
+function toggleRoutine(id){
+  const dd=getDay(curYear,curMonth,curDay);
+  dd.checks[id]=!dd.checks[id];
+  setDay(curYear,curMonth,curDay,dd);
+  renderRoutines(dd);
+}
+
+function updateProgress(dd){
+  const done=routines.filter(r=>dd.checks[r.id]).length;
+  const total=routines.length;
+  const pct=total>0?Math.round(done/total*100):0;
+  document.getElementById('prog-count').textContent=`달성 ${done}/${total}`;
+  document.getElementById('prog-pct').textContent=`${pct}%`;
+  document.getElementById('prog-fill').style.width=pct+'%';
+}
+
+function saveDay(){
+  const dd=getDay(curYear,curMonth,curDay);
+  dd.gratitude=document.getElementById('gratitude-text').value;
+  setDay(curYear,curMonth,curDay,dd);
+  showView('cal');
+}
+
+/* ── 편집 ── */
+function renderEditView(){ editTemp=JSON.parse(JSON.stringify(routines)); closeEmojiPicker(); renderEditList(); }
+
+function renderEditList(){
+  const list=document.getElementById('edit-list');
+  list.innerHTML='';
+  editTemp.forEach((r,i)=>{
+    const row=document.createElement('div'); row.className='edit-row'; row.dataset.idx=i;
+    row.innerHTML=`
+      <i class="ti ti-grip-vertical drag-handle" data-idx="${i}"></i>
+      <button class="edit-icon-btn" onclick="openEmojiPicker(${i})" title="아이콘 변경">${r.icon}</button>
+      <input class="edit-name-input" value="${r.name.replace(/"/g,'&quot;')}" data-idx="${i}" placeholder="루틴 이름" />
+      <button class="del-btn" onclick="deleteRoutine(${i})" aria-label="삭제"><i class="ti ti-trash"></i></button>`;
+    row.querySelector('.edit-name-input').addEventListener('input', function(){ editTemp[i].name=this.value; });
+    const handle=row.querySelector('.drag-handle');
+    handle.addEventListener('mousedown', dragStart(i, row));
+    handle.addEventListener('touchstart', dragStartTouch(i, row), {passive:true});
+    list.appendChild(row);
+  });
+}
+
+function dragStart(i, row){
+  return function(e){
+    dragIdx=i; dragEl=row;
+    document.addEventListener('mousemove', onDragMove);
+    document.addEventListener('mouseup', onDragEnd);
+  };
+}
+function dragStartTouch(i, row){
+  return function(e){
+    dragIdx=i; dragEl=row;
+    document.addEventListener('touchmove', onDragMoveTouch, {passive:false});
+    document.addEventListener('touchend', onDragEndTouch);
+  };
+}
+function getRowAtY(y){
+  const rows=document.querySelectorAll('#edit-list .edit-row');
+  for(const r of rows){
+    const rect=r.getBoundingClientRect();
+    if(y>=rect.top && y<=rect.bottom) return parseInt(r.dataset.idx);
+  }
+  return -1;
+}
+function onDragMove(e){ highlight(getRowAtY(e.clientY)); }
+function onDragMoveTouch(e){ e.preventDefault(); highlight(getRowAtY(e.touches[0].clientY)); }
+function highlight(idx){
+  document.querySelectorAll('#edit-list .edit-row').forEach(r=>r.classList.remove('drag-over'));
+  if(idx>=0) document.querySelectorAll('#edit-list .edit-row')[idx]?.classList.add('drag-over');
+}
+function onDragEnd(e){ drop(getRowAtY(e.clientY)); document.removeEventListener('mousemove',onDragMove); document.removeEventListener('mouseup',onDragEnd); }
+function onDragEndTouch(e){ drop(getRowAtY(e.changedTouches[0].clientY)); document.removeEventListener('touchmove',onDragMoveTouch); document.removeEventListener('touchend',onDragEndTouch); }
+function drop(targetIdx){
+  if(dragIdx>=0 && targetIdx>=0 && targetIdx!==dragIdx){
+    const moved=editTemp.splice(dragIdx,1)[0];
+    editTemp.splice(targetIdx,0,moved);
+  }
+  dragIdx=-1; dragEl=null;
+  renderEditList();
+}
+
+function addRoutine(){
+  editTemp.push({id:'r'+Date.now(),icon:'⭐',name:''});
+  renderEditList();
+  const inputs=document.querySelectorAll('.edit-name-input');
+  if(inputs.length) inputs[inputs.length-1].focus();
+}
+function deleteRoutine(i){ editTemp.splice(i,1); renderEditList(); }
+
+function openEmojiPicker(i){
+  emojiTargetIdx=i;
+  const grid=document.getElementById('emoji-grid');
+  grid.innerHTML='';
+  EMOJI_OPTIONS.forEach(em=>{
+    const cell=document.createElement('div'); cell.className='emoji-cell'; cell.textContent=em;
+    cell.onclick=()=>{ if(emojiTargetIdx>=0){editTemp[emojiTargetIdx].icon=em; renderEditList();} closeEmojiPicker(); };
+    grid.appendChild(cell);
+  });
+  document.getElementById('emoji-overlay').style.display='block';
+}
+function closeEmojiPicker(){ document.getElementById('emoji-overlay').style.display='none'; emojiTargetIdx=-1; }
+
+function saveRoutines(){
+  const valid=editTemp.filter(r=>r.name.trim());
+  if(!valid.length){ alert('루틴이 최소 1개 필요해요.'); return; }
+  routines=valid; saveRoutineStore(); showView('cal');
+}
+
+/* ── 통계 ── */
+function renderStats(){
+  document.getElementById('stats-month-label').textContent=`${String(curYear).slice(2)}년 ${MO[curMonth]} 통계`;
+  const days=new Date(curYear,curMonth+1,0).getDate();
+  let activeDays=0, totalDone=0, maxStreak=0, cur=0;
+  const cnt={}; routines.forEach(r=>cnt[r.id]=0);
+  for(let d=1;d<=days;d++){
+    const dd=getDay(curYear,curMonth,d);
+    const done=routines.filter(r=>dd.checks[r.id]).length;
+    if(Object.keys(dd.checks).length>0) activeDays++;
+    totalDone+=done;
+    routines.forEach(r=>{ if(dd.checks[r.id]) cnt[r.id]++; });
+    if(done>0){cur++;maxStreak=Math.max(maxStreak,cur);}else{cur=0;}
+  }
+  const pct=activeDays>0?Math.round(totalDone/(activeDays*routines.length)*100):0;
+  document.getElementById('stats-cards').innerHTML=`
+    <div class="stat-card"><div class="stat-lbl">이번 달 달성률</div><div class="stat-val" style="color:var(--green)">${pct}%</div><div class="stat-sub">활동일 기준</div></div>
+    <div class="stat-card"><div class="stat-lbl">기록한 날</div><div class="stat-val">${activeDays}일</div><div class="stat-sub">총 ${days}일 중</div></div>
+    <div class="stat-card"><div class="stat-lbl">최장 연속</div><div class="stat-val">${maxStreak}일</div><div class="stat-sub">루틴 완료 기준</div></div>
+    <div class="stat-card"><div class="stat-lbl">총 완료</div><div class="stat-val">${totalDone}건</div><div class="stat-sub">전체 루틴 체크</div></div>`;
+  const rs=document.getElementById('routine-stats');
+  rs.innerHTML='<div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;">루틴별 달성 현황</div>';
+  routines.forEach(r=>{
+    const p=activeDays>0?Math.round(cnt[r.id]/activeDays*100):0;
+    const row=document.createElement('div'); row.className='rst-row';
+    row.innerHTML=`<span class="rst-icon">${r.icon}</span><span class="rst-name">${r.name}</span><div class="rst-bar-wrap"><div class="rst-bar" style="width:${p}%"></div></div><span class="rst-pct">${p}%</span>`;
+    rs.appendChild(row);
+  });
+}
+
+loadState();
+const now=new Date(); curYear=now.getFullYear(); curMonth=now.getMonth();
+renderCalendar();
+</script>
+</body>
+</html>
