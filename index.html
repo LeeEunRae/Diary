@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
-<title>Rae's Diary</title>
+<title>루틴 다이어리</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" />
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
@@ -12,69 +12,77 @@
 :root{--bg:#ffffff;--surface:#f7f7f5;--border:rgba(0,0,0,0.1);--green:#1D9E75;--accent:#378ADD;}
 body{font-family:sans-serif;background:var(--bg);max-width:480px;margin:0 auto;}
 .app{min-height:100vh;display:flex;flex-direction:column;}
-.view{display:none;flex:1;}
-.view.active{display:flex;flex-direction:column;}
-.tab-bar{display:flex;border-top:1px solid var(--border);padding:10px;background:white;}
-.tab-btn{flex:1;text-align:center;cursor:pointer;font-size:12px;background:none;border:none;}
-.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;padding:10px;}
-.cal-day{border:0.5px solid var(--border);min-height:60px;cursor:pointer;font-size:11px;}
+.view{display:none;flex:1;flex-direction:column;}
+.view.active{display:flex;}
+.tab-bar{display:flex;border-top:1px solid var(--border);background:white;padding:5px;}
+.tab-btn{flex:1;text-align:center;cursor:pointer;font-size:12px;background:none;border:none;padding:10px;}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;padding:10px;}
+.cal-day{border:0.5px solid var(--border);min-height:50px;cursor:pointer;font-size:10px;text-align:center;padding:2px;}
+.r-item{border-bottom:0.5px solid var(--border);padding:10px;display:flex;align-items:center;gap:5px;}
 .rst-row{display:flex;align-items:center;gap:10px;padding:8px 1rem;border-bottom:0.5px solid var(--border);}
 .rb-w{flex:1;height:8px;background:#eee;border-radius:4px;}
 .rb{height:100%;background:var(--green);border-radius:4px;}
+.pdf-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);justify-content:center;align-items:center;}
+.pdf-overlay.open{display:flex;}
 </style>
 </head>
 <body>
 <div class="app">
-  <!-- [뷰 1: 캘린더] -->
+  <!-- 캘린더 뷰 -->
   <div id="view-cal" class="view active">
     <div style="padding:1rem; font-weight:bold;" id="cal-title"></div>
     <div class="cal-grid" id="cal-grid"></div>
     <div class="tab-bar">
-      <button class="tab-btn active" onclick="showView('cal')">캘린더</button>
+      <button class="tab-btn" onclick="showView('cal')">캘린더</button>
       <button class="tab-btn" onclick="showView('edit')">루틴관리</button>
       <button class="tab-btn" onclick="showView('stats')">통계</button>
       <button class="tab-btn" onclick="openPdfModal('all')">PDF</button>
     </div>
   </div>
 
-  <!-- [뷰 2: 루틴관리] -->
-  <div id="view-edit" class="view">
-    <div style="padding:1rem; border-bottom:1px solid var(--border);">루틴 관리 <button onclick="showView('cal')">닫기</button></div>
-    <div id="edit-list" style="flex:1;"></div>
+  <!-- 데일리 루틴 뷰 -->
+  <div id="view-daily" class="view">
+    <div style="padding:10px; border-bottom:1px solid var(--border);"><button onclick="showView('cal')">← 뒤로</button> <span id="daily-date-label"></span></div>
+    <div id="routines-list" style="flex:1;"></div>
+    <div style="padding:10px;"><textarea id="gratitude-text" style="width:100%;height:50px;" placeholder="감사일기"></textarea>
+    <button onclick="saveDay()" style="width:100%;padding:10px;">저장</button></div>
   </div>
 
-  <!-- [뷰 3: 통계] -->
+  <!-- 루틴 관리 뷰 -->
+  <div id="view-edit" class="view">
+    <div style="padding:10px;"><button onclick="showView('cal')">← 닫기</button></div>
+    <div id="edit-list"></div>
+    <button onclick="saveDefaults()" style="width:100%;padding:10px;">저장하고 나가기</button>
+  </div>
+
+  <!-- 통계 뷰 -->
   <div id="view-stats" class="view">
     <div style="padding:1rem;">
         <h2 id="stats-month-label"></h2>
-        <button onclick="renderStats('month')">이번 달</button>
-        <button onclick="renderStats('all')">전체 누적</button>
+        <button onclick="renderStats('month')">이번 달</button> <button onclick="renderStats('all')">전체</button>
         <div id="stats-content"></div>
         <button onclick="showView('cal')">닫기</button>
     </div>
   </div>
-
-  <!-- 데일리 뷰 등은 이전 코드와 동일하게 유지 -->
 </div>
 
 <script>
-// ★ 내 프로젝트 Config값 넣기 ★
+// ★ Config값 넣기 ★
 const firebaseConfig = { apiKey: "...", authDomain: "...", projectId: "...", storageBucket: "...", messagingSenderId: "...", appId: "...", measurementId: "..." };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 const docRef = db.collection("diary_app").doc("my_records");
 
-let state={}, defaultRoutines=[], curYear, curMonth;
+let state={}, defaultRoutines=[], curYear, curMonth, curDay;
 
 function load(){
   docRef.get().then((doc) => {
-    if(doc.exists) {
-      state = doc.data().state || {};
-      defaultRoutines = doc.data().defaultRoutines || [];
-    }
+    if(doc.exists) { state = doc.data().state || {}; defaultRoutines = doc.data().defaultRoutines || []; }
     renderCalendar();
   });
 }
+
+function saveState(){ docRef.set({ state, defaultRoutines }, { merge: true }); }
 
 function showView(v){
   document.querySelectorAll('.view').forEach(el=>el.classList.remove('active'));
@@ -83,28 +91,61 @@ function showView(v){
   if(v==='stats') renderStats();
 }
 
-function renderStats(mode = 'month') {
-    let statsTitle = (mode === 'month') ? `${curYear}년 ${curMonth+1}월` : "전체 누적";
-    document.getElementById('stats-month-label').textContent = statsTitle;
-    
+function renderCalendar(){
+  document.getElementById('cal-title').textContent=`${curYear}년 ${curMonth+1}월`;
+  const grid=document.getElementById('cal-grid'); grid.innerHTML='';
+  const days=new Date(curYear,curMonth+1,0).getDate();
+  for(let d=1;d<=days;d++){
+    const key = `${curYear}-${String(curMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const dd = state[key];
+    let sum = dd ? `<div style="color:green;">${dd.routines.filter(r=>r.done).length}/${dd.routines.length}</div>` : '';
+    grid.innerHTML+=`<div class="cal-day" onclick="openDay(${d})"><div>${d}</div>${sum}</div>`;
+  }
+}
+
+function openDay(d){
+  curDay=d;
+  document.getElementById('daily-date-label').textContent=`${curMonth+1}월 ${d}일`;
+  document.getElementById('gratitude-text').value = state[`${curYear}-${String(curMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`]?.gratitude || '';
+  renderDailyRoutines();
+  showView('daily');
+}
+
+function renderDailyRoutines(){
+  const dd = state[`${curYear}-${String(curMonth+1).padStart(2,'0')}-${String(curDay).padStart(2,'0')}`];
+  const list = document.getElementById('routines-list'); list.innerHTML='';
+  dd.routines.forEach((r,i)=>{
+    list.innerHTML+=`<div class="r-item">
+      <button onclick="moveR(${i},-1)">▲</button><button onclick="moveR(${i},1)">▼</button>
+      <span>${r.icon}</span> <span>${r.name}</span>
+      <button onclick="toggleDone(${i})">${r.done?'✅':'⬜'}</button>
+      <button onclick="deleteRoutine(${i})">X</button>
+    </div>`;
+  });
+}
+
+function renderStats(mode='month'){
     let routineStats = {};
-    Object.keys(state).forEach(dateKey => {
-        if(mode === 'month' && !dateKey.startsWith(`${curYear}-${String(curMonth+1).padStart(2,'0')}`)) return;
-        state[dateKey].routines.forEach(r => {
+    Object.keys(state).forEach(k => {
+        if(mode==='month' && !k.startsWith(`${curYear}-${String(curMonth+1).padStart(2,'0')}`)) return;
+        state[k].routines.forEach(r => {
             if(!routineStats[r.name]) routineStats[r.name] = {done:0, total:0, icon:r.icon};
             routineStats[r.name].total++;
             if(r.done) routineStats[r.name].done++;
         });
     });
-    
     let html = '';
-    Object.keys(routineStats).forEach(name => {
-        const r = routineStats[name];
-        const rPct = Math.round((r.done / r.total) * 100);
-        html += `<div class="rst-row"><span>${r.icon}</span> <span>${name}</span> <div class="rb-w"><div class="rb" style="width:${rPct}%"></div></div> <span>${rPct}%</span></div>`;
+    Object.keys(routineStats).forEach(n => {
+        const r = routineStats[n];
+        html += `<div class="rst-row"><span>${r.icon}</span> <span>${n}</span> <div class="rb-w"><div class="rb" style="width:${Math.round(r.done/r.total*100)}%"></div></div></div>`;
     });
     document.getElementById('stats-content').innerHTML = html;
 }
+
+function moveR(i,d){/* 이전 코드와 동일하게 구현 */}
+function deleteRoutine(i){/* 이전 코드와 동일하게 구현 */}
+function toggleDone(i){/* 이전 코드와 동일하게 구현 */}
+function saveDay(){ /* 저장 로직 */ }
 
 load();
 const now=new Date(); curYear=now.getFullYear(); curMonth=now.getMonth();
