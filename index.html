@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
 <title>루틴 다이어리</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" />
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
 <style>
 :root{--bg:#ffffff;--surface:#f7f7f5;--surface2:#efefed;--border:rgba(0,0,0,0.1);--border-strong:rgba(0,0,0,0.18);--text:#1a1a18;--text-secondary:#5f5e5a;--text-muted:#888780;--accent:#378ADD;--green:#1D9E75;--red:#E24B4A;--radius:8px;}
 @media(prefers-color-scheme:dark){:root{--bg:#1c1c1a;--surface:#252523;--surface2:#2e2e2b;--border:rgba(255,255,255,0.1);--border-strong:rgba(255,255,255,0.18);--text:#f0ede8;--text-secondary:#b4b2a9;--text-muted:#888780;}}
@@ -297,6 +299,20 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 
 </div>
 <script>
+const firebaseConfig = {
+  apiKey: "AIzaSyBsKS_5mrxUzMK3CVopeTyKmNXFFT-nRkE",
+  authDomain: "my-diary-e9446.firebaseapp.com",
+  projectId: "my-diary-e9446",
+  storageBucket: "my-diary-e9446.firebasestorage.app",
+  messagingSenderId: "291228938130",
+  appId: "1:291228938130:web:13bacb3a59d24e2804db4b",
+  measurementId: "G-NKRPZJJNPX"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const docRef = db.collection("diary_app").doc("my_records");
+
 const EMOJIS=['🏅','🧘','💚','📚','📝','🗂','🏃','💪','🧠','📖','✍️','🎯','🌿','💡','🔥','⭐','🌙','☀️','🍎','💧','🎵','🖊️','📊','💰','🏠','🗺️','🧭','📅','⏰','🌱','🎪','🏋️','🚴','🧹','🥗','🍵','🙏','✅','🔑','🎤'];
 const WD=['월','화','수','목','금','토','일'];
 const MO=['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
@@ -315,12 +331,29 @@ let ciIcon='⭐',emojiDropOpen=false,emojiSheetTarget=-1,openMemoIdx=-1;
 let pdfScope='month';
 
 function load(){
-  try{state=JSON.parse(localStorage.getItem('diary_v5')||'{}');}catch(e){state={};}
-  try{const s=localStorage.getItem('diary_defaults');defaultRoutines=s?JSON.parse(s):JSON.parse(JSON.stringify(DEFAULT_ROUTINES));}
-  catch(e){defaultRoutines=JSON.parse(JSON.stringify(DEFAULT_ROUTINES));}
+  state = {};
+  defaultRoutines = JSON.parse(JSON.stringify(DEFAULT_ROUTINES));
+  
+  docRef.get().then((doc) => {
+    if(doc.exists) {
+      state = doc.data().state || {};
+      defaultRoutines = doc.data().defaultRoutines || JSON.parse(JSON.stringify(DEFAULT_ROUTINES));
+    }
+    renderCalendar();
+  }).catch((error) => {
+    console.error("데이터 로드 오류:", error);
+    renderCalendar();
+  });
 }
-function saveState(){try{localStorage.setItem('diary_v5',JSON.stringify(state));}catch(e){}}
-function saveDefStore(){try{localStorage.setItem('diary_defaults',JSON.stringify(defaultRoutines));}catch(e){}}
+
+function saveState(){
+  docRef.set({ state: state, defaultRoutines: defaultRoutines }, { merge: true })
+    .catch(err => console.error("저장 오류:", err));
+}
+function saveDefStore(){
+  saveState();
+}
+
 function dayKey(y,m,d){return `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;}
 function getDay(y,m,d){
   const k=dayKey(y,m,d);
@@ -549,7 +582,6 @@ function renderStats(){
 
 load();
 const now=new Date();curYear=now.getFullYear();curMonth=now.getMonth();
-renderCalendar();
 </script>
 </body>
 </html>
