@@ -3,10 +3,8 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
-<title>루틴 다이어리</title>
+<title>Rae's Diary</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" />
-<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
 <style>
 :root{--bg:#ffffff;--surface:#f7f7f5;--surface2:#efefed;--border:rgba(0,0,0,0.1);--border-strong:rgba(0,0,0,0.18);--text:#1a1a18;--text-secondary:#5f5e5a;--text-muted:#888780;--accent:#378ADD;--green:#1D9E75;--red:#E24B4A;--radius:8px;}
 @media(prefers-color-scheme:dark){:root{--bg:#1c1c1a;--surface:#252523;--surface2:#2e2e2b;--border:rgba(255,255,255,0.1);--border-strong:rgba(255,255,255,0.18);--text:#f0ede8;--text-secondary:#b4b2a9;--text-muted:#888780;}}
@@ -183,6 +181,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 <body>
 <div class="app">
 
+<!-- 캘린더 -->
 <div id="view-cal" class="view active">
   <div class="cal-header">
     <span class="cal-title" id="cal-title"></span>
@@ -205,6 +204,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   </div>
 </div>
 
+<!-- 데일리 -->
 <div id="view-daily" class="view" style="position:relative;">
   <div class="hd">
     <button class="ib" onclick="showView('cal')" aria-label="뒤로"><i class="ti ti-arrow-left"></i></button>
@@ -233,6 +233,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   </div>
 </div>
 
+<!-- 기본 루틴 편집 -->
 <div id="view-edit" class="view">
   <div class="hd">
     <button class="ib" onclick="showView('cal')" aria-label="뒤로"><i class="ti ti-arrow-left"></i></button>
@@ -253,6 +254,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   </div>
 </div>
 
+<!-- 통계 -->
 <div id="view-stats" class="view">
   <div class="hd">
     <button class="ib" onclick="showView('cal')" aria-label="뒤로"><i class="ti ti-arrow-left"></i></button>
@@ -270,6 +272,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   </div>
 </div>
 
+<!-- PDF 모달 -->
 <div id="pdf-overlay" class="pdf-overlay">
   <div class="pdf-modal">
     <div class="pdf-modal-title" id="pdf-modal-title">PDF 저장</div>
@@ -289,27 +292,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   </div>
 </div>
 
+<!-- 프린트 영역 -->
 <div id="print-area"></div>
 
 </div>
 <script>
-// Firebase 설정 연동 추가 부분
-const firebaseConfig = {
-  apiKey: "AIzaSyBsKS_5mrxUzMK3CVopeTyKmNXFFT-nRkE",
-  authDomain: "my-diary-e9446.firebaseapp.com",
-  projectId: "my-diary-e9446",
-  storageBucket: "my-diary-e9446.firebasestorage.app",
-  messagingSenderId: "291228938130",
-  appId: "1:291228938130:web:13bacb3a59d24e2804db4b",
-  measurementId: "G-NKRPZJJNPX"
-};
-
-// 기존 스크립트 방식(compat)으로 Firebase를 초기화합니다.
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
-const docRef = db.collection("diary_app").doc("my_records");
-
-
 const EMOJIS=['🏅','🧘','💚','📚','📝','🗂','🏃','💪','🧠','📖','✍️','🎯','🌿','💡','🔥','⭐','🌙','☀️','🍎','💧','🎵','🖊️','📊','💰','🏠','🗺️','🧭','📅','⏰','🌱','🎪','🏋️','🚴','🧹','🥗','🍵','🙏','✅','🔑','🎤'];
 const WD=['월','화','수','목','금','토','일'];
 const MO=['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
@@ -327,18 +314,242 @@ let curYear,curMonth,curDay;
 let ciIcon='⭐',emojiDropOpen=false,emojiSheetTarget=-1,openMemoIdx=-1;
 let pdfScope='month';
 
-// Firestore와 로컬스토리지를 연결하여 PC-모바일 연동이 되도록 load() 수정
 function load(){
-  docRef.get().then((doc) => {
-    if (doc.exists) {
-      const data = doc.data();
-      state = data.state || {};
-      defaultRoutines = data.defaultRoutines || JSON.parse(JSON.stringify(DEFAULT_ROUTINES));
-    } else {
-      fallbackLoad();
+  try{state=JSON.parse(localStorage.getItem('diary_v5')||'{}');}catch(e){state={};}
+  try{const s=localStorage.getItem('diary_defaults');defaultRoutines=s?JSON.parse(s):JSON.parse(JSON.stringify(DEFAULT_ROUTINES));}
+  catch(e){defaultRoutines=JSON.parse(JSON.stringify(DEFAULT_ROUTINES));}
+}
+function saveState(){try{localStorage.setItem('diary_v5',JSON.stringify(state));}catch(e){}}
+function saveDefStore(){try{localStorage.setItem('diary_defaults',JSON.stringify(defaultRoutines));}catch(e){}}
+function dayKey(y,m,d){return `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;}
+function getDay(y,m,d){
+  const k=dayKey(y,m,d);
+  if(!state[k]){state[k]={routines:defaultRoutines.map(r=>({...r,done:false,memo:''})),gratitude:''};}
+  return state[k];
+}
+
+function showView(v){
+  document.querySelectorAll('.view').forEach(el=>el.classList.remove('active'));
+  document.getElementById('view-'+v).classList.add('active');
+  if(v==='cal')renderCalendar();
+  if(v==='stats')renderStats();
+  if(v==='edit')renderEditView();
+}
+function changeMonth(d){curMonth+=d;if(curMonth<0){curYear--;curMonth=11;}if(curMonth>11){curYear++;curMonth=0;}renderCalendar();}
+
+function renderCalendar(){
+  document.getElementById('cal-title').textContent=`${String(curYear).slice(2)}년 ${MO[curMonth]}`;
+  const first=defaultRoutines[0];
+  const leg=document.getElementById('cal-legend');
+  if(first)leg.innerHTML=`<span style="font-size:13px">${first.icon}</span><span style="font-size:11px">${first.name.length>6?first.name.slice(0,6)+'…':first.name}</span>`;
+  const grid=document.getElementById('cal-grid');grid.innerHTML='';
+  const today=new Date();
+  let sd=new Date(curYear,curMonth,1).getDay();sd=sd===0?6:sd-1;
+  const days=new Date(curYear,curMonth+1,0).getDate();
+  for(let i=0;i<sd;i++){const el=document.createElement('div');el.className='cal-day empty';el.innerHTML='<span class="dn"></span>';grid.appendChild(el);}
+  for(let d=1;d<=days;d++){
+    const el=document.createElement('div');el.className='cal-day';
+    if(today.getFullYear()===curYear&&today.getMonth()===curMonth&&today.getDate()===d)el.classList.add('today');
+    const dd=state[dayKey(curYear,curMonth,d)];
+    let mainHTML='',dots='';
+    if(dd&&dd.routines&&dd.routines.length>0){
+      const fr=dd.routines[0];
+      mainHTML=`<span class="day-main-icon">${fr.icon}</span><span class="${fr.done?'day-done':'day-skip'}">${fr.done?'완료':'미완'}</span>`;
+      dd.routines.slice(1).forEach(r=>{dots+=`<div class="dot ${r.done?'dot-done':'dot-skip'}"></div>`;});
     }
-    renderCalendar();
-  }).catch((error) => {
-    console.error("Firebase 로딩 실패, 로컬 데이터 사용:", error);
-    fallbackLoad();
-    renderCalendar
+    el.innerHTML=`<span class="dn">${d}</span>${mainHTML}<div class="dot-row">${dots}</div>`;
+    el.onclick=()=>openDay(d);
+    grid.appendChild(el);
+  }
+}
+
+function openDay(d){
+  curDay=d;openMemoIdx=-1;
+  const o=new Date(curYear,curMonth,d);
+  const dow=WD[o.getDay()===0?6:o.getDay()-1];
+  document.getElementById('daily-date-label').textContent=`${String(curYear).slice(2)}년 ${curMonth+1}월 ${d}일 (${dow})`;
+  const dd=getDay(curYear,curMonth,d);
+  document.getElementById('gratitude-text').value=dd.gratitude||'';
+  closeCustomInput();renderDailyRoutines();renderPresets();showView('daily');
+}
+
+function renderDailyRoutines(){
+  const dd=getDay(curYear,curMonth,curDay);
+  const list=document.getElementById('routines-list');list.innerHTML='';
+  dd.routines.forEach((r,i)=>{
+    const wrap=document.createElement('div');wrap.className='r-item';
+    const hasMemo=!!(r.memo&&r.memo.trim()),isEditOpen=(openMemoIdx===i);
+    const top=document.createElement('div');top.className='r-item-top';
+    top.innerHTML=`<span class="r-icon">${r.icon}</span><span class="r-name">${r.name}</span>
+      <div class="r-actions">
+        <button class="memo-btn ${hasMemo||isEditOpen?'has-memo':''}" aria-label="메모"><i class="ti ti-pencil"></i></button>
+        <button class="del-r-btn" aria-label="삭제"><i class="ti ti-x"></i></button>
+        <div class="check-circle ${r.done?'done':''}">${r.done?'<i class="ti ti-check" style="font-size:12px"></i>':''}</div>
+      </div>`;
+    top.querySelector('.check-circle').onclick=()=>toggleDone(i);
+    top.querySelector('.r-name').onclick=()=>toggleDone(i);
+    top.querySelector('.r-icon').onclick=()=>toggleDone(i);
+    top.querySelector('.memo-btn').onclick=(e)=>{e.stopPropagation();toggleMemoEdit(i);};
+    top.querySelector('.del-r-btn').onclick=(e)=>{e.stopPropagation();deleteRoutine(i);};
+    wrap.appendChild(top);
+    if(hasMemo&&!isEditOpen){const disp=document.createElement('div');disp.className='r-memo-display';disp.textContent=r.memo;wrap.appendChild(disp);}
+    const editWrap=document.createElement('div');editWrap.className='r-memo-edit'+(isEditOpen?' open':'');
+    const ta=document.createElement('textarea');ta.className='r-memo-ta';ta.placeholder='세부 내용을 입력하세요…';ta.value=r.memo||'';ta.rows=3;
+    const btnRow=document.createElement('div');btnRow.className='memo-save-row';
+    const cb=document.createElement('button');cb.className='memo-cancel-btn';cb.textContent='취소';cb.onclick=()=>{openMemoIdx=-1;renderDailyRoutines();};
+    const ob=document.createElement('button');ob.className='memo-ok-btn';ob.textContent='저장';ob.onclick=()=>{dd.routines[i].memo=ta.value.trim();saveState();openMemoIdx=-1;renderDailyRoutines();};
+    btnRow.appendChild(cb);btnRow.appendChild(ob);editWrap.appendChild(ta);editWrap.appendChild(btnRow);wrap.appendChild(editWrap);
+    if(isEditOpen)requestAnimationFrame(()=>ta.focus());
+    list.appendChild(wrap);
+  });
+  updateProgress();
+}
+function toggleMemoEdit(i){openMemoIdx=(openMemoIdx===i)?-1:i;renderDailyRoutines();}
+function toggleDone(i){const dd=getDay(curYear,curMonth,curDay);dd.routines[i].done=!dd.routines[i].done;saveState();renderDailyRoutines();}
+function deleteRoutine(i){const dd=getDay(curYear,curMonth,curDay);dd.routines.splice(i,1);if(openMemoIdx===i)openMemoIdx=-1;saveState();renderDailyRoutines();renderPresets();}
+function updateProgress(){
+  const dd=getDay(curYear,curMonth,curDay);
+  const total=dd.routines.length,done=dd.routines.filter(r=>r.done).length;
+  const pct=total>0?Math.round(done/total*100):0;
+  document.getElementById('prog-count').textContent=`달성 ${done}/${total}`;
+  document.getElementById('prog-pct').textContent=`${pct}%`;
+  document.getElementById('prog-fill').style.width=pct+'%';
+}
+function renderPresets(){
+  const dd=getDay(curYear,curMonth,curDay);
+  const existIds=new Set(dd.routines.map(r=>r.id));
+  const ps=document.getElementById('preset-scroll');ps.innerHTML='';
+  defaultRoutines.filter(r=>!existIds.has(r.id)).forEach(r=>{
+    const chip=document.createElement('div');chip.className='preset-chip';
+    chip.innerHTML=`<span>${r.icon}</span><span>${r.name}</span>`;
+    chip.onclick=()=>{dd.routines.push({...r,done:false,memo:''});saveState();renderDailyRoutines();renderPresets();};
+    ps.appendChild(chip);
+  });
+  if(!ps.children.length)ps.innerHTML=`<span style="font-size:12px;color:var(--text-muted)">추가할 기본 루틴이 없어요</span>`;
+}
+function toggleCustomInput(){const row=document.getElementById('custom-input-row');if(row.classList.contains('open')){closeCustomInput();}else{row.classList.add('open');document.getElementById('ci-name').focus();}}
+function closeCustomInput(){document.getElementById('custom-input-row').classList.remove('open');document.getElementById('ci-name').value='';ciIcon='⭐';document.getElementById('ci-icon-btn').textContent='⭐';closeEmojiDrop();}
+function addCustomRoutine(){const name=document.getElementById('ci-name').value.trim();if(!name)return;const dd=getDay(curYear,curMonth,curDay);dd.routines.push({id:'c'+Date.now(),icon:ciIcon,name,done:false,memo:''});saveState();renderDailyRoutines();renderPresets();closeCustomInput();}
+function toggleEmojiDrop(){emojiDropOpen=!emojiDropOpen;const drop=document.getElementById('emoji-drop');if(emojiDropOpen){drop.innerHTML='';EMOJIS.forEach(em=>{const c=document.createElement('div');c.className='e-cell';c.textContent=em;c.onclick=()=>{ciIcon=em;document.getElementById('ci-icon-btn').textContent=em;closeEmojiDrop();};drop.appendChild(c);});drop.classList.add('open');}else closeEmojiDrop();}
+function closeEmojiDrop(){document.getElementById('emoji-drop').classList.remove('open');emojiDropOpen=false;}
+function saveDay(){const dd=getDay(curYear,curMonth,curDay);dd.gratitude=document.getElementById('gratitude-text').value;saveState();showView('cal');}
+
+/* ── PDF ── */
+function getRecordedDays(scope){
+  const allKeys=Object.keys(state).filter(k=>state[k]&&state[k].routines&&state[k].routines.length>0);
+  if(scope==='month'){const prefix=`${curYear}-${String(curMonth+1).padStart(2,'0')}-`;return allKeys.filter(k=>k.startsWith(prefix)).sort();}
+  return allKeys.sort();
+}
+function keyToLabel(k){
+  const [y,m,d]=k.split('-').map(Number);
+  const o=new Date(y,m-1,d);
+  const dow=WD[o.getDay()===0?6:o.getDay()-1];
+  return `${String(y).slice(2)}년 ${m}월 ${d}일 (${dow})`;
+}
+function openPdfModal(mode){
+  if(mode==='day'){
+    document.getElementById('pdf-modal-title').textContent='오늘 일자 PDF';
+    document.getElementById('pdf-modal-sub').textContent='현재 날짜 기록을 PDF로 저장해요';
+    document.getElementById('pdf-scope-row').style.display='none';
+    const k=dayKey(curYear,curMonth,curDay);
+    const dd=state[k];
+    const total=dd?dd.routines.length:0,done=dd?dd.routines.filter(r=>r.done).length:0;
+    document.getElementById('pdf-day-count').textContent=`달성 ${done}/${total}`;
+    document.getElementById('pdf-day-list').innerHTML=`<div class="pdf-day-chip has-done">${keyToLabel(k)}</div>`;
+    buildPrintArea([k]);
+    document.getElementById('pdf-go-btn').disabled=false;
+  } else {
+    pdfScope='month';
+    document.getElementById('pdf-modal-title').textContent='전체 기록 PDF';
+    document.getElementById('pdf-modal-sub').textContent='기록이 있는 날짜를 한 번에 저장해요';
+    document.getElementById('pdf-scope-row').style.display='flex';
+    document.getElementById('scope-month').classList.add('active');
+    document.getElementById('scope-all').classList.remove('active');
+    updatePdfPreview();
+  }
+  document.getElementById('pdf-overlay').classList.add('open');
+}
+function setPdfScope(s){
+  pdfScope=s;
+  document.getElementById('scope-month').classList.toggle('active',s==='month');
+  document.getElementById('scope-all').classList.toggle('active',s==='all');
+  updatePdfPreview();
+}
+function updatePdfPreview(){
+  const keys=getRecordedDays(pdfScope);
+  const btn=document.getElementById('pdf-go-btn');
+  if(!keys.length){document.getElementById('pdf-day-count').textContent='기록된 날짜가 없어요';document.getElementById('pdf-day-list').innerHTML='';btn.disabled=true;return;}
+  btn.disabled=false;
+  document.getElementById('pdf-day-count').textContent=`총 ${keys.length}일 · 날짜별 1페이지씩 저장돼요`;
+  const listEl=document.getElementById('pdf-day-list');listEl.innerHTML='';
+  keys.forEach(k=>{
+    const dd=state[k];const done=dd.routines.filter(r=>r.done).length;
+    const chip=document.createElement('div');chip.className='pdf-day-chip'+(done>0?' has-done':'');
+    chip.textContent=keyToLabel(k)+` · ${done}/${dd.routines.length}`;
+    listEl.appendChild(chip);
+  });
+  buildPrintArea(keys);
+}
+function buildPrintArea(keys){
+  document.getElementById('print-area').innerHTML=keys.map(k=>{
+    const dd=state[k];if(!dd)return '';
+    const label=keyToLabel(k);
+    const total=dd.routines.length,done=dd.routines.filter(r=>r.done).length;
+    const pct=total>0?Math.round(done/total*100):0;
+    let html=`<div class="p-day-page"><div class="p-header"><div class="p-date">${label}</div><div class="p-prog">달성 ${done}/${total} · ${pct}%</div></div><div class="p-section-title">루틴 체크리스트</div>`;
+    dd.routines.forEach(r=>{html+=`<div class="p-routine"><div class="p-check ${r.done?'done':''}"></div><div class="p-r-icon">${r.icon}</div><div class="p-r-body"><div class="p-r-name">${r.name}</div>${r.memo?`<div class="p-r-memo">${r.memo}</div>`:''}</div></div>`;});
+    if(dd.gratitude&&dd.gratitude.trim()){html+=`<div class="p-section-title">🙏 감사일기</div><div class="p-gratitude">${dd.gratitude}</div>`;}
+    html+=`<div class="p-footer">루틴 다이어리 · ${label}</div></div>`;
+    return html;
+  }).join('');
+}
+function closePdfModal(){document.getElementById('pdf-overlay').classList.remove('open');}
+function doPrint(){closePdfModal();setTimeout(()=>window.print(),150);}
+
+/* ── 편집 ── */
+function renderEditView(){editTemp=JSON.parse(JSON.stringify(defaultRoutines));closeEmojiSheet();renderEditList();}
+function renderEditList(){
+  const list=document.getElementById('edit-list');list.innerHTML='';
+  editTemp.forEach((r,i)=>{
+    const isFirst=i===0;const row=document.createElement('div');row.className='edit-row';
+    row.innerHTML=`<div class="order-btns">
+        <button class="ob" onclick="moveR(${i},-1)" ${i===0?'disabled':''} aria-label="위로"><i class="ti ti-chevron-up"></i></button>
+        <button class="ob" onclick="moveR(${i},1)" ${i===editTemp.length-1?'disabled':''} aria-label="아래로"><i class="ti ti-chevron-down"></i></button>
+      </div>
+      <button class="e-icon-btn" onclick="openEmojiSheet(${i})" aria-label="아이콘 변경" ${isFirst?'style="border-color:var(--green)"':''}>${r.icon}</button>
+      <input class="e-name-input" value="${r.name.replace(/"/g,'&quot;')}" data-i="${i}" placeholder="루틴 이름" ${isFirst?'style="font-weight:500"':''}/>
+      ${isFirst?'<span class="one-badge">원씽</span>':''}
+      <button class="del-btn" onclick="delEditR(${i})" aria-label="삭제"><i class="ti ti-trash"></i></button>`;
+    row.querySelector('.e-name-input').addEventListener('input',function(){editTemp[parseInt(this.dataset.i)].name=this.value;});
+    list.appendChild(row);
+  });
+}
+function moveR(i,d){const j=i+d;if(j<0||j>=editTemp.length)return;[editTemp[i],editTemp[j]]=[editTemp[j],editTemp[i]];renderEditList();}
+function delEditR(i){editTemp.splice(i,1);renderEditList();}
+function addDefaultRoutine(){editTemp.push({id:'d'+Date.now(),icon:'⭐',name:''});renderEditList();document.querySelectorAll('.e-name-input')[editTemp.length-1]?.focus();}
+function openEmojiSheet(i){emojiSheetTarget=i;const g=document.getElementById('es-grid');g.innerHTML='';EMOJIS.forEach(em=>{const c=document.createElement('div');c.className='es-cell';c.textContent=em;c.onclick=()=>{if(emojiSheetTarget>=0){editTemp[emojiSheetTarget].icon=em;renderEditList();}closeEmojiSheet();};g.appendChild(c);});document.getElementById('emoji-sheet').style.display='block';}
+function closeEmojiSheet(){document.getElementById('emoji-sheet').style.display='none';emojiSheetTarget=-1;}
+function saveDefaults(){const valid=editTemp.filter(r=>r.name.trim());if(!valid.length){alert('루틴이 최소 1개 필요해요.');return;}defaultRoutines=valid;saveDefStore();showView('cal');}
+
+/* ── 통계 ── */
+function renderStats(){
+  document.getElementById('stats-month-label').textContent=`${String(curYear).slice(2)}년 ${MO[curMonth]} 통계`;
+  const days=new Date(curYear,curMonth+1,0).getDate();
+  let activeDays=0,totalDone=0,totalR=0,maxStreak=0,cur=0;const cnt={};
+  for(let d=1;d<=days;d++){const dd=state[dayKey(curYear,curMonth,d)];if(!dd||!dd.routines||!dd.routines.length)continue;activeDays++;const done=dd.routines.filter(r=>r.done).length;totalDone+=done;totalR+=dd.routines.length;dd.routines.forEach(r=>{if(!cnt[r.name])cnt[r.name]={icon:r.icon,done:0,total:0};cnt[r.name].total++;if(r.done)cnt[r.name].done++;});if(done>0){cur++;maxStreak=Math.max(maxStreak,cur);}else cur=0;}
+  const pct=totalR>0?Math.round(totalDone/totalR*100):0;
+  document.getElementById('stats-cards').innerHTML=`
+    <div class="sc"><div class="sl">이번 달 달성률</div><div class="sv" style="color:var(--green)">${pct}%</div><div class="ss">기록일 기준</div></div>
+    <div class="sc"><div class="sl">기록한 날</div><div class="sv">${activeDays}일</div><div class="ss">총 ${days}일 중</div></div>
+    <div class="sc"><div class="sl">최장 연속</div><div class="sv">${maxStreak}일</div><div class="ss">루틴 완료 기준</div></div>
+    <div class="sc"><div class="sl">총 완료</div><div class="sv">${totalDone}건</div><div class="ss">전체 루틴 체크</div></div>`;
+  const rs=document.getElementById('routine-stats');rs.innerHTML='<div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;">루틴별 달성 현황</div>';
+  Object.entries(cnt).sort((a,b)=>b[1].done-a[1].done).forEach(([name,v])=>{const p=v.total>0?Math.round(v.done/v.total*100):0;const row=document.createElement('div');row.className='rst-row';row.innerHTML=`<span class="ri">${v.icon}</span><span class="rn">${name}</span><div class="rb-w"><div class="rb" style="width:${p}%"></div></div><span class="rp">${p}%</span>`;rs.appendChild(row);});
+}
+
+load();
+const now=new Date();curYear=now.getFullYear();curMonth=now.getMonth();
+renderCalendar();
+</script>
+</body>
+</html>
