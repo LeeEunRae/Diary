@@ -193,7 +193,29 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .pdf-go-btn:hover{opacity:.85;}
 .pdf-go-btn:disabled{opacity:.4;cursor:default;}
 
-/* 프린트 영역 — 화면에서는 숨김, 인쇄될 때만 노출 */
+/* 월별 목표 모달 */
+.mgoal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:100;align-items:center;justify-content:center;}
+.mgoal-overlay.open{display:flex;}
+.mgoal-modal{background:var(--bg);border-radius:12px;width:320px;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,.2);overflow:hidden;}
+.mgoal-header{display:flex;align-items:center;gap:8px;padding:1rem 1rem 0.75rem;border-bottom:0.5px solid var(--border);}
+.mgoal-title{font-size:15px;font-weight:500;flex:1;}
+.mgoal-scroll{flex:1;overflow-y:auto;padding:0.5rem 0;}
+.mgoal-row{display:flex;align-items:center;gap:10px;padding:10px 1rem;border-bottom:0.5px solid var(--border);}
+.mgoal-icon{font-size:18px;flex-shrink:0;}
+.mgoal-name{flex:1;font-size:14px;}
+.mgoal-input{width:60px;height:34px;border-radius:var(--radius);border:0.5px solid var(--border);background:var(--surface);color:var(--text);font-family:inherit;font-size:14px;text-align:center;padding:0;flex-shrink:0;}
+.mgoal-input:focus{outline:none;border-color:var(--green);}
+.mgoal-unit{font-size:12px;color:var(--text-muted);flex-shrink:0;}
+.mgoal-footer{padding:1rem;border-top:0.5px solid var(--border);}
+/* 캘린더 헤더 목표 버튼 */
+.cal-goal-btn{display:flex;align-items:center;gap:4px;padding:4px 8px;border-radius:var(--radius);border:0.5px solid var(--border);background:transparent;cursor:pointer;font-size:11px;color:var(--text-muted);font-family:inherit;white-space:nowrap;}
+.cal-goal-btn:hover{background:var(--surface);color:var(--text);}
+/* 통계 목표 대비 달성 */
+.count-stat-row{display:flex;align-items:center;gap:10px;padding:8px 1rem;border-bottom:0.5px solid var(--border);}
+.csr-icon{font-size:16px;width:22px;text-align:center;flex-shrink:0;}
+.csr-name{flex:1;font-size:13px;}
+.csr-val{font-size:13px;font-weight:500;color:var(--green);min-width:40px;text-align:right;}
+.csr-target{font-size:11px;color:var(--text-muted);}
 #print-area{position:fixed;left:-99999px;top:0;width:0;height:0;overflow:hidden;}
 @media print{
   body *{visibility:hidden;}
@@ -234,6 +256,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     <span class="cal-title" id="cal-title"></span>
     <div class="cal-nav">
       <span class="cal-legend" id="cal-legend"></span>
+      <button class="cal-goal-btn" onclick="openMGoalModal()" aria-label="이달 목표 설정"><i class="ti ti-target" style="font-size:13px"></i>월목표</button>
       <button class="nb" onclick="changeMonth(-1)" aria-label="이전 달"><i class="ti ti-chevron-left"></i></button>
       <button class="nb" onclick="changeMonth(1)" aria-label="다음 달"><i class="ti ti-chevron-right"></i></button>
     </div>
@@ -323,6 +346,20 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   </div>
 </div>
 
+<!-- 월별 목표 설정 모달 -->
+<div id="mgoal-overlay" class="mgoal-overlay">
+  <div class="mgoal-modal">
+    <div class="mgoal-header">
+      <button class="ib" onclick="closeMGoalModal()" aria-label="닫기"><i class="ti ti-x"></i></button>
+      <span class="mgoal-title" id="mgoal-title">이달 카운트 목표</span>
+    </div>
+    <div class="mgoal-scroll" id="mgoal-list"></div>
+    <div class="mgoal-footer">
+      <button class="primary-btn" style="margin-top:0" onclick="saveMGoal()">저장</button>
+    </div>
+  </div>
+</div>
+
 <!-- PDF 모달 -->
 <div id="pdf-overlay" class="pdf-overlay">
   <div class="pdf-modal">
@@ -376,6 +413,7 @@ const DEFAULT_ROUTINES=[
 ];
 
 let state={}, defaultRoutines=[], editTemp=[];
+let monthGoals={}; // key: "YYYY-MM" → {routineId: target, ...}
 let curYear, curMonth, curDay;
 let openMemoIdx=-1;
 let pdfScope='month', saveTimer=null;
@@ -395,11 +433,15 @@ async function loadFromFirebase(){
     defaultRoutines=defDoc.exists()?defDoc.data().routines:JSON.parse(JSON.stringify(DEFAULT_ROUTINES));
     const snap=await getDocs(collection(db,'diary','days','entries'));
     state={};snap.forEach(d=>{state[d.id]=d.data();});
+    // 월별 목표 로드
+    const gsnap=await getDocs(collection(db,'diary','monthGoals','entries'));
+    monthGoals={};gsnap.forEach(d=>{monthGoals[d.id]=d.data();});
     setSyncStatus('ok');
   }catch(e){
     console.error(e);
     try{state=JSON.parse(localStorage.getItem('diary_v5')||'{}');}catch(e2){state={};}
     try{const s=localStorage.getItem('diary_defaults');defaultRoutines=s?JSON.parse(s):JSON.parse(JSON.stringify(DEFAULT_ROUTINES));}catch(e2){defaultRoutines=JSON.parse(JSON.stringify(DEFAULT_ROUTINES));}
+    try{monthGoals=JSON.parse(localStorage.getItem('diary_monthGoals')||'{}');}catch(e2){monthGoals={};}
     setSyncStatus('err');
   }
   renderCalendar();
@@ -421,10 +463,77 @@ function scheduleSave(key,data){
   saveTimer=setTimeout(()=>saveDayToFirebase(key,data),800);
 }
 
+function monthGoalKey(y,m){return `${y}-${String(m+1).padStart(2,'0')}`;}
+function getMonthTarget(routineId, y, m){
+  const mk=monthGoalKey(y,m);
+  // 월별 목표 있으면 사용, 없으면 기본 루틴의 target 사용
+  if(monthGoals[mk]&&monthGoals[mk][routineId]!=null) return monthGoals[mk][routineId];
+  const def=defaultRoutines.find(r=>r.id===routineId);
+  return def?(def.target||1):1;
+}
+async function saveMGoalToFirebase(mk, data){
+  setSyncStatus('syncing');
+  try{localStorage.setItem('diary_monthGoals',JSON.stringify(monthGoals));}catch(e){}
+  try{await setDoc(doc(db,'diary','monthGoals','entries',mk),data);setSyncStatus('ok');}
+  catch(e){console.error(e);setSyncStatus('err');}
+}
+
+// 월별 목표 모달
+function openMGoalModal(){
+  const mk=monthGoalKey(curYear,curMonth);
+  document.getElementById('mgoal-title').textContent=`${String(curYear).slice(2)}년 ${MO[curMonth]} 카운트 목표`;
+  const countRoutines=defaultRoutines.filter(r=>r.countMode);
+  const list=document.getElementById('mgoal-list');list.innerHTML='';
+  if(!countRoutines.length){
+    list.innerHTML='<div style="padding:2rem 1rem;text-align:center;font-size:13px;color:var(--text-muted);">카운트 루틴이 없어요.<br>기본 루틴 관리에서 횟수 카운트를 켜주세요.</div>';
+  }else{
+    countRoutines.forEach(r=>{
+      const cur=getMonthTarget(r.id,curYear,curMonth);
+      const row=document.createElement('div');row.className='mgoal-row';
+      row.innerHTML=`<span class="mgoal-icon">${r.icon}</span><span class="mgoal-name">${r.name}</span>
+        <input class="mgoal-input" type="number" min="0" max="9999" value="${cur}" data-rid="${r.id}" />
+        <span class="mgoal-unit">회</span>`;
+      list.appendChild(row);
+    });
+  }
+  document.getElementById('mgoal-overlay').classList.add('open');
+}
+window.openMGoalModal=openMGoalModal;
+function closeMGoalModal(){document.getElementById('mgoal-overlay').classList.remove('open');}
+window.closeMGoalModal=closeMGoalModal;
+async function saveMGoal(){
+  const mk=monthGoalKey(curYear,curMonth);
+  if(!monthGoals[mk])monthGoals[mk]={};
+  document.querySelectorAll('.mgoal-input').forEach(inp=>{
+    const rid=inp.dataset.rid;
+    monthGoals[mk][rid]=Math.max(0,parseInt(inp.value)||0);
+  });
+  await saveMGoalToFirebase(mk,monthGoals[mk]);
+  closeMGoalModal();
+  renderCalendar();
+}
+window.saveMGoal=saveMGoal;
+
 function dayKey(y,m,d){return `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;}
 function getDay(y,m,d){
   const k=dayKey(y,m,d);
-  if(!state[k]){state[k]={routines:defaultRoutines.map(r=>({...r,done:false,memo:'',countMode:r.countMode||false,count:0,target:r.target||1})),gratitude:''};}
+  if(!state[k]){
+    state[k]={
+      routines:defaultRoutines.map(r=>({
+        ...r,done:false,memo:'',
+        countMode:r.countMode||false,
+        count:0,
+        target:getMonthTarget(r.id,y,m)
+      })),
+      gratitude:''
+    };
+  }
+  // 월별 목표 항상 최신값 반영
+  if(state[k].routines){
+    state[k].routines.forEach(r=>{
+      if(r.countMode) r.target=getMonthTarget(r.id,y,m);
+    });
+  }
   return state[k];
 }
 
@@ -637,14 +746,39 @@ function renderStats(){if(statsScope==='month')renderMonthStats();else renderYea
 function renderMonthStats(){
   document.getElementById('stats-period-label').textContent=`${statsYear}년 ${MO[statsMonth]}`;
   const days=new Date(statsYear,statsMonth+1,0).getDate();
-  let activeDays=0,totalDone=0,totalR=0,maxStreak=0,cur=0;const cnt={};
+  let activeDays=0,totalDone=0,totalR=0,maxStreak=0,cur=0;
+  const cnt={};
+  const countTotals={};
+  const countIds=new Set(defaultRoutines.filter(r=>r.countMode).map(r=>r.id));
+
   for(let d=1;d<=days;d++){
     const dd=state[dayKey(statsYear,statsMonth,d)];
     if(!dd||!dd.routines||!dd.routines.length)continue;
     activeDays++;
-    const done=dd.routines.filter(r=>r.done).length;
+    const done=dd.routines.filter(r=>{
+      const isCount=r.countMode||countIds.has(r.id);
+      if(isCount){
+        // 체크됐으면 카운트 1로 인정, 아니면 count 값 사용
+        const effective=r.done?Math.max(r.count||0,1):(r.count||0);
+        const tgt=getMonthTarget(r.id,statsYear,statsMonth);
+        return effective>=tgt;
+      }
+      return r.done;
+    }).length;
     totalDone+=done;totalR+=dd.routines.length;
-    dd.routines.forEach(r=>{if(!cnt[r.name])cnt[r.name]={icon:r.icon,done:0,total:0};cnt[r.name].total++;if(r.done)cnt[r.name].done++;});
+
+    dd.routines.forEach(r=>{
+      const isCount=r.countMode||countIds.has(r.id);
+      if(isCount){
+        if(!countTotals[r.id])countTotals[r.id]={name:r.name,icon:r.icon,count:0,target:getMonthTarget(r.id,statsYear,statsMonth)};
+        // 체크됐으면 카운트 최소 1로 인정
+        const effective=r.done?Math.max(r.count||0,1):(r.count||0);
+        countTotals[r.id].count+=effective;
+      } else {
+        if(!cnt[r.name])cnt[r.name]={icon:r.icon,done:0,total:0};
+        cnt[r.name].total++;if(r.done)cnt[r.name].done++;
+      }
+    });
     if(done>0){cur++;maxStreak=Math.max(maxStreak,cur);}else cur=0;
   }
   const pct=totalR>0?Math.round(totalDone/totalR*100):0;
@@ -654,8 +788,25 @@ function renderMonthStats(){
     <div class="sc"><div class="sl">최장 연속</div><div class="sv">${maxStreak}일</div><div class="ss">루틴 완료 기준</div></div>
     <div class="sc"><div class="sl">총 완료</div><div class="sv">${totalDone}건</div><div class="ss">전체 루틴 체크</div></div>`;
   const body=document.getElementById('stats-body');body.innerHTML='';
+
+  if(Object.keys(countTotals).length){
+    const ct=document.createElement('div');ct.className='rst-section-title';ct.textContent='카운트 루틴 — 월 누적 달성';body.appendChild(ct);
+    Object.values(countTotals).forEach(v=>{
+      const tgt=v.target;const p=tgt>0?Math.min(100,Math.round(v.count/tgt*100)):0;
+      const reached=v.count>=tgt;
+      const row=document.createElement('div');row.className='count-stat-row';
+      row.innerHTML=`<span class="csr-icon">${v.icon}</span>
+        <span class="csr-name">${v.name}</span>
+        <div class="rb-w" style="width:80px"><div class="rb" style="width:${p}%;background:${reached?'var(--accent)':'var(--green)'}"></div></div>
+        <span class="csr-val" style="color:${reached?'var(--green)':'var(--text)'}">${v.count}<span class="csr-target"> / ${tgt}</span></span>`;
+      body.appendChild(row);
+    });
+  }
+
   if(Object.keys(cnt).length){
-    const title=document.createElement('div');title.className='rst-section-title';title.textContent='루틴별 달성 현황';body.appendChild(title);
+    const title=document.createElement('div');title.className='rst-section-title';
+    title.style.marginTop=Object.keys(countTotals).length?'8px':'0';
+    title.textContent='루틴별 달성 현황';body.appendChild(title);
     Object.entries(cnt).sort((a,b)=>b[1].done-a[1].done).forEach(([name,v])=>{
       const p=v.total>0?Math.round(v.done/v.total*100):0;
       const row=document.createElement('div');row.className='rst-row';
