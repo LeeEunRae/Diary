@@ -42,6 +42,21 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .dot-row{display:flex;gap:2px;min-height:5px;justify-content:center;flex-wrap:wrap;}
 .dot{width:4px;height:4px;border-radius:50%;}
 .dot-done{background:var(--green);}.dot-skip{background:var(--border-strong);}
+.day-pct{font-size:9px;font-weight:600;color:var(--green);}
+.day-pct.zero{color:var(--text-muted);}
+/* 카운트 루틴 */
+.count-row{display:flex;align-items:center;gap:8px;padding:6px 1rem 10px 52px;}
+.count-btn{width:28px;height:28px;border-radius:50%;border:1.5px solid var(--border-strong);background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;color:var(--text-secondary);flex-shrink:0;}
+.count-btn:hover{background:var(--surface2);}
+.count-val{font-size:15px;font-weight:500;min-width:20px;text-align:center;}
+.count-target{font-size:12px;color:var(--text-muted);}
+.count-bar-wrap{flex:1;height:4px;background:var(--surface2);border-radius:2px;overflow:hidden;}
+.count-bar{height:100%;background:var(--green);border-radius:2px;transition:width .2s;}
+.count-bar.over{background:var(--accent);}
+/* 기본루틴 편집에 목표 횟수 입력 */
+.e-target-input{width:48px;height:34px;border-radius:var(--radius);border:0.5px solid var(--border);background:var(--surface);color:var(--text);font-family:inherit;font-size:13px;text-align:center;padding:0;flex-shrink:0;}
+.e-target-input:focus{outline:none;border-color:var(--green);}
+.e-target-label{font-size:11px;color:var(--text-muted);flex-shrink:0;}
 
 .hd{display:flex;align-items:center;gap:6px;padding:0.875rem 1rem 0.75rem;border-bottom:0.5px solid var(--border);flex-shrink:0;}
 .hd-title{font-size:15px;font-weight:500;flex:1;}
@@ -104,7 +119,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 
 .g-section{padding:1rem;border-top:0.5px solid var(--border);flex-shrink:0;}
 .g-label{font-size:12px;color:var(--text-muted);margin-bottom:8px;display:flex;align-items:center;gap:6px;}
-.g-textarea{width:100%;border:0.5px solid var(--border);border-radius:var(--radius);background:var(--surface);color:var(--text);font-family:inherit;font-size:14px;line-height:1.6;padding:10px 12px;resize:none;min-height:72px;}
+.g-textarea{width:100%;border:0.5px solid var(--border);border-radius:var(--radius);background:var(--surface);color:var(--text);font-family:inherit;font-size:15px;line-height:1.7;padding:12px 14px;resize:vertical;min-height:160px;}
 .g-textarea:focus{outline:none;border-color:var(--green);}
 .g-textarea::placeholder{color:var(--text-muted);}
 .primary-btn{margin-top:8px;width:100%;padding:10px;background:var(--text);color:var(--bg);border:none;border-radius:var(--radius);font-size:14px;font-weight:500;cursor:pointer;font-family:inherit;}
@@ -210,7 +225,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 
 <!-- 캘린더 -->
 <div id="view-cal" class="view active">
-  <div class="sync-banner"><div class="sync-dot" id="sync-dot"></div><span id="sync-text">연결 중…</span></div>
+  <div class="sync-banner" id="sync-banner" onclick="manualRefresh()" style="cursor:pointer;">
+    <div class="sync-dot" id="sync-dot"></div>
+    <span id="sync-text">연결 중…</span>
+    <i class="ti ti-refresh" style="font-size:13px;margin-left:2px;opacity:.6;"></i>
+  </div>
   <div class="cal-header">
     <span class="cal-title" id="cal-title"></span>
     <div class="cal-nav">
@@ -256,7 +275,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   </div>
   <div class="g-section">
     <div class="g-label"><i class="ti ti-heart" style="font-size:14px;color:#D4537E"></i>감사일기</div>
-    <textarea class="g-textarea" id="gratitude-text" placeholder="오늘 감사한 일을 자유롭게 적어보세요…" rows="3"></textarea>
+    <textarea class="g-textarea" id="gratitude-text" placeholder="오늘 감사한 일을 자유롭게 적어보세요…" rows="6"></textarea>
     <button class="primary-btn" onclick="saveDay()">저장</button>
   </div>
 </div>
@@ -405,7 +424,7 @@ function scheduleSave(key,data){
 function dayKey(y,m,d){return `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;}
 function getDay(y,m,d){
   const k=dayKey(y,m,d);
-  if(!state[k]){state[k]={routines:defaultRoutines.map(r=>({...r,done:false,memo:''})),gratitude:''};}
+  if(!state[k]){state[k]={routines:defaultRoutines.map(r=>({...r,done:false,memo:'',countMode:r.countMode||false,count:0,target:r.target||1})),gratitude:''};}
   return state[k];
 }
 
@@ -434,13 +453,16 @@ function renderCalendar(){
     const el=document.createElement('div');el.className='cal-day';
     if(today.getFullYear()===curYear&&today.getMonth()===curMonth&&today.getDate()===d)el.classList.add('today');
     const dd=state[dayKey(curYear,curMonth,d)];
-    let mainHTML='',dots='';
+    let mainHTML='',pctHTML='';
     if(dd&&dd.routines&&dd.routines.length>0){
       const fr=dd.routines[0];
-      mainHTML=`<span class="day-main-icon">${fr.icon}</span><span class="${fr.done?'day-done':'day-skip'}">${fr.done?'완료':'미완'}</span>`;
-      dd.routines.slice(1).forEach(r=>{dots+=`<div class="dot ${r.done?'dot-done':'dot-skip'}"></div>`;});
+      const total=dd.routines.length;
+      const done=dd.routines.filter(r=>r.done||(r.countMode&&r.count>0&&r.count>=r.target)).length;
+      const pct=Math.round(done/total*100);
+      mainHTML=`<span class="day-main-icon">${fr.icon}</span>`;
+      pctHTML=`<span class="day-pct${pct===0?' zero':''}">${pct}%</span>`;
     }
-    el.innerHTML=`<span class="dn">${d}</span>${mainHTML}<div class="dot-row">${dots}</div>`;
+    el.innerHTML=`<span class="dn">${d}</span>${mainHTML}${pctHTML}`;
     el.onclick=()=>openDay(d);
     grid.appendChild(el);
   }
@@ -480,6 +502,7 @@ function renderDailyRoutines(){
   dd.routines.forEach((r,i)=>{
     const wrap=document.createElement('div');wrap.className='r-item'+(sortMode?' sort-mode':'');
     const hasMemo=!!(r.memo&&r.memo.trim()),isEditOpen=(openMemoIdx===i&&!sortMode);
+    const isCount=!!r.countMode;
     const top=document.createElement('div');top.className='r-item-top';
     if(sortMode){
       top.innerHTML=`
@@ -490,6 +513,30 @@ function renderDailyRoutines(){
         <span class="r-icon" style="cursor:default">${r.icon}</span>
         <span class="r-name" style="cursor:default;color:var(--text-secondary)">${r.name}</span>
         <span style="font-size:11px;color:var(--text-muted);flex-shrink:0;">${i+1}순위</span>`;
+    }else if(isCount){
+      // 카운트 모드
+      const tgt=r.target||1,cnt=r.count||0;
+      const pct=Math.min(100,Math.round(cnt/tgt*100));
+      const reached=cnt>=tgt;
+      top.innerHTML=`
+        <span class="r-icon" style="cursor:default">${r.icon}</span>
+        <span class="r-name" style="cursor:default">${r.name}</span>
+        <div class="r-actions">
+          <button class="memo-btn ${hasMemo||isEditOpen?'has-memo':''}" aria-label="메모"><i class="ti ti-pencil"></i></button>
+          <button class="del-r-btn" aria-label="삭제"><i class="ti ti-x"></i></button>
+        </div>`;
+      top.querySelector('.memo-btn').onclick=(e)=>{e.stopPropagation();toggleMemoEdit(i);};
+      top.querySelector('.del-r-btn').onclick=(e)=>{e.stopPropagation();deleteRoutine(i);};
+      wrap.appendChild(top);
+      // 카운트 컨트롤 행
+      const cr=document.createElement('div');cr.className='count-row';
+      cr.innerHTML=`
+        <button class="count-btn" onclick="adjustCount(${i},-1)">−</button>
+        <span class="count-val" style="color:${reached?'var(--green)':'var(--text)'}">${cnt}</span>
+        <span class="count-target">/ ${tgt}</span>
+        <div class="count-bar-wrap"><div class="count-bar${cnt>tgt?' over':''}" style="width:${pct}%"></div></div>
+        <button class="count-btn" onclick="adjustCount(${i},1)" style="${reached?'border-color:var(--green);color:var(--green)':''}">+</button>`;
+      wrap.appendChild(cr);
     }else{
       top.innerHTML=`
         <span class="r-icon">${r.icon}</span>
@@ -505,7 +552,7 @@ function renderDailyRoutines(){
       top.querySelector('.memo-btn').onclick=(e)=>{e.stopPropagation();toggleMemoEdit(i);};
       top.querySelector('.del-r-btn').onclick=(e)=>{e.stopPropagation();deleteRoutine(i);};
     }
-    wrap.appendChild(top);
+    if(!isCount) wrap.appendChild(top);
     if(!sortMode){
       if(hasMemo&&!isEditOpen){const disp=document.createElement('div');disp.className='r-memo-display';disp.textContent=r.memo;wrap.appendChild(disp);}
       const editWrap=document.createElement('div');editWrap.className='r-memo-edit'+(isEditOpen?' open':'');
@@ -523,10 +570,17 @@ function renderDailyRoutines(){
 }
 function toggleMemoEdit(i){openMemoIdx=(openMemoIdx===i)?-1:i;renderDailyRoutines();}
 function toggleDone(i){const dd=getDay(curYear,curMonth,curDay);dd.routines[i].done=!dd.routines[i].done;scheduleSave(dayKey(curYear,curMonth,curDay),dd);renderDailyRoutines();}
+function adjustCount(i,delta){
+  const dd=getDay(curYear,curMonth,curDay);
+  dd.routines[i].count=Math.max(0,(dd.routines[i].count||0)+delta);
+  scheduleSave(dayKey(curYear,curMonth,curDay),dd);renderDailyRoutines();
+}
+window.adjustCount=adjustCount;
 function deleteRoutine(i){const dd=getDay(curYear,curMonth,curDay);dd.routines.splice(i,1);if(openMemoIdx===i)openMemoIdx=-1;scheduleSave(dayKey(curYear,curMonth,curDay),dd);renderDailyRoutines();renderPresets();}
 function updateProgress(){
   const dd=getDay(curYear,curMonth,curDay);
-  const total=dd.routines.length,done=dd.routines.filter(r=>r.done).length;
+  const total=dd.routines.length;
+  const done=dd.routines.filter(r=>r.countMode?(r.count||0)>=(r.target||1):r.done).length;
   const pct=total>0?Math.round(done/total*100):0;
   document.getElementById('prog-count').textContent=`달성 ${done}/${total}`;
   document.getElementById('prog-pct').textContent=`${pct}%`;
@@ -539,7 +593,7 @@ function renderPresets(){
   defaultRoutines.filter(r=>!existIds.has(r.id)).forEach(r=>{
     const chip=document.createElement('div');chip.className='preset-chip';
     chip.innerHTML=`<span>${r.icon}</span><span>${r.name}</span>`;
-    chip.onclick=()=>{dd.routines.push({...r,done:false,memo:''});scheduleSave(dayKey(curYear,curMonth,curDay),dd);renderDailyRoutines();renderPresets();};
+    chip.onclick=()=>{dd.routines.push({...r,done:false,memo:'',count:0});scheduleSave(dayKey(curYear,curMonth,curDay),dd);renderDailyRoutines();renderPresets();};
     ps.appendChild(chip);
   });
   if(!ps.children.length)ps.innerHTML=`<span style="font-size:12px;color:var(--text-muted)">추가할 기본 루틴이 없어요</span>`;
@@ -560,7 +614,7 @@ function addCustomRoutine(){
   const name=document.getElementById('ci-name').value.trim();if(!name)return;
   const icon=document.getElementById('ci-icon-input').value.trim()||'⭐';
   const dd=getDay(curYear,curMonth,curDay);
-  dd.routines.push({id:'c'+Date.now(),icon,name,done:false,memo:''});
+  dd.routines.push({id:'c'+Date.now(),icon,name,done:false,memo:'',countMode:false,count:0,target:1});
   scheduleSave(dayKey(curYear,curMonth,curDay),dd);renderDailyRoutines();renderPresets();closeCustomInput();
 }
 window.addCustomRoutine=addCustomRoutine;
@@ -655,22 +709,34 @@ function renderYearStats(){
   }
 }
 
-/* ── 기본 루틴 편집 (이모지 직접 입력) ── */
+/* ── 기본 루틴 편집 (이모지 직접 입력 + 카운트 설정) ── */
 function renderEditView(){editTemp=JSON.parse(JSON.stringify(defaultRoutines));renderEditList();}
 function renderEditList(){
   const list=document.getElementById('edit-list');list.innerHTML='';
   editTemp.forEach((r,i)=>{
     const isFirst=i===0;const row=document.createElement('div');row.className='edit-row';
+    row.style.flexWrap='wrap';row.style.rowGap='4px';
+    const isCount=!!r.countMode;
     row.innerHTML=`<div class="order-btns">
         <button class="ob" onclick="moveR(${i},-1)" ${i===0?'disabled':''} aria-label="위로"><i class="ti ti-chevron-up"></i></button>
         <button class="ob" onclick="moveR(${i},1)" ${i===editTemp.length-1?'disabled':''} aria-label="아래로"><i class="ti ti-chevron-down"></i></button>
       </div>
-      <input class="e-icon-input" value="${r.icon}" maxlength="2" data-i="${i}" aria-label="아이콘" ${isFirst?'style="border-color:var(--green)"':''}/>
+      <input class="e-icon-input" value="${r.icon||'⭐'}" maxlength="2" data-i="${i}" aria-label="아이콘" ${isFirst?'style="border-color:var(--green)"':''}/>
       <input class="e-name-input" value="${r.name.replace(/"/g,'&quot;')}" data-i="${i}" placeholder="루틴 이름" ${isFirst?'style="font-weight:500"':''}/>
       ${isFirst?'<span class="one-badge">원씽</span>':''}
-      <button class="del-btn" onclick="delEditR(${i})" aria-label="삭제"><i class="ti ti-trash"></i></button>`;
+      <button class="del-btn" onclick="delEditR(${i})" aria-label="삭제"><i class="ti ti-trash"></i></button>
+      <div style="width:100%;display:flex;align-items:center;gap:8px;padding-left:64px;">
+        <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px;color:var(--text-secondary);">
+          <input type="checkbox" ${isCount?'checked':''} data-ci="${i}" style="accent-color:var(--green);width:14px;height:14px;" /> 횟수 카운트
+        </label>
+        ${isCount?`<span class="e-target-label">목표</span><input class="e-target-input" type="number" min="1" max="999" value="${r.target||1}" data-ti="${i}" /><span class="e-target-label">회</span>`:''}
+      </div>`;
     row.querySelector('.e-name-input').addEventListener('input',function(){editTemp[parseInt(this.dataset.i)].name=this.value;});
     row.querySelector('.e-icon-input').addEventListener('input',function(){editTemp[parseInt(this.dataset.i)].icon=this.value||'⭐';});
+    row.querySelector('input[type="checkbox"]').addEventListener('change',function(){
+      const idx=parseInt(this.dataset.ci);editTemp[idx].countMode=this.checked;if(!this.checked)editTemp[idx].target=1;renderEditList();
+    });
+    if(isCount){row.querySelector('.e-target-input').addEventListener('input',function(){editTemp[parseInt(this.dataset.ti)].target=Math.max(1,parseInt(this.value)||1);});}
     list.appendChild(row);
   });
 }
@@ -681,7 +747,7 @@ window.delEditR=delEditR;
 function addDefaultRoutine(){editTemp.push({id:'d'+Date.now(),icon:'⭐',name:''});renderEditList();document.querySelectorAll('.e-name-input')[editTemp.length-1]?.focus();}
 window.addDefaultRoutine=addDefaultRoutine;
 async function saveDefaults(){
-  const valid=editTemp.filter(r=>r.name.trim()).map(r=>({...r,icon:r.icon||'⭐'}));
+  const valid=editTemp.filter(r=>r.name.trim()).map(r=>({...r,icon:r.icon||'⭐',countMode:!!r.countMode,target:r.target||1}));
   if(!valid.length){alert('루틴이 최소 1개 필요해요.');return;}
   defaultRoutines=valid;await saveDefaultsToFirebase();showView('cal');
 }
@@ -758,7 +824,7 @@ function buildPrintArea(keys){
     if(dd.gratitude&&dd.gratitude.trim()){
       html+=`<div class="p-section-title">🙏 감사일기</div><div class="p-gratitude">${escapeHtml(dd.gratitude)}</div>`;
     }
-    html+=`<div class="p-footer">루틴 다이어리 · ${label}</div></div>`;
+    html+=`<div class="p-footer">Rae's Diary · ${label}</div></div>`;
   });
   target.innerHTML=html;
 }
@@ -780,7 +846,14 @@ function doPrint(){
 }
 window.doPrint=doPrint;
 
-/* ── 시작 ── */
+async function manualRefresh(){
+  const banner=document.getElementById('sync-banner');
+  banner.style.pointerEvents='none';
+  await loadFromFirebase();
+  renderCalendar();
+  banner.style.pointerEvents='';
+}
+window.manualRefresh=manualRefresh;
 const now=new Date();
 curYear=now.getFullYear();curMonth=now.getMonth();
 statsYear=now.getFullYear();statsMonth=now.getMonth();
