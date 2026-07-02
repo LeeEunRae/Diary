@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
-<title>Rae's Diary</title>
+<title>루틴 다이어리</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" />
 <style>
 :root{--bg:#ffffff;--surface:#f7f7f5;--surface2:#efefed;--border:rgba(0,0,0,0.1);--border-strong:rgba(0,0,0,0.18);--text:#1a1a18;--text-secondary:#5f5e5a;--text-muted:#888780;--accent:#378ADD;--green:#1D9E75;--red:#E24B4A;--radius:8px;}
@@ -27,16 +27,17 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .cal-legend{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text-muted);}
 .nb{width:28px;height:28px;border-radius:var(--radius);border:0.5px solid var(--border);background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--text-secondary);font-size:14px;}
 .nb:hover{background:var(--surface);}
-.weekday-row{display:grid;grid-template-columns:repeat(7,1fr);padding:0.5rem 0.75rem 0;}
+.weekday-row{display:grid;grid-template-columns:repeat(7,1fr);padding:0.4rem 0.25rem 0;}
 .wd{text-align:center;font-size:11px;color:var(--text-muted);padding:4px 0;font-weight:500;}
-.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);padding:0.25rem 0.5rem 1rem;gap:2px;}
-.cal-day{border-radius:var(--radius);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;min-height:50px;gap:2px;transition:background .15s;padding:3px 1px;}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);padding:0.2rem 0.25rem 1rem;gap:2px;}
+.cal-day{border-radius:var(--radius);display:flex;flex-direction:column;align-items:center;cursor:pointer;min-height:72px;gap:2px;transition:background .15s;padding:5px 1px;}
 .cal-day:hover:not(.empty){background:var(--surface);}
 .cal-day.empty{cursor:default;}
 .cal-day.today .dn{width:22px;height:22px;border-radius:50%;background:var(--text);color:var(--bg);display:flex;align-items:center;justify-content:center;}
-.dn{font-size:12px;line-height:1;}
+.dn{font-size:12px;line-height:1;flex-shrink:0;}
 .cal-day.empty .dn{color:var(--text-muted);}
-.day-main-icon{font-size:14px;line-height:1;}
+.day-memo-text{font-size:8px;color:var(--text-secondary);line-height:1.3;text-align:center;width:100%;overflow:hidden;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;word-break:break-all;padding:0 1px;margin-top:1px;}
+.day-done-dot{width:5px;height:5px;border-radius:50%;background:var(--green);flex-shrink:0;margin-top:3px;}
 .day-done{font-size:9px;font-weight:500;color:var(--green);}
 .day-skip{font-size:9px;color:var(--text-muted);}
 .dot-row{display:flex;gap:2px;min-height:5px;justify-content:center;flex-wrap:wrap;}
@@ -552,7 +553,7 @@ function renderCalendar(){
   document.getElementById('cal-title').textContent=`${String(curYear).slice(2)}년 ${MO[curMonth]}`;
   const first=defaultRoutines[0];
   const leg=document.getElementById('cal-legend');
-  if(first)leg.innerHTML=`<span style="font-size:13px">${first.icon}</span><span style="font-size:11px">${first.name.length>6?first.name.slice(0,6)+'…':first.name}</span>`;
+  if(first)leg.innerHTML=`<span style="font-size:11px;color:var(--text-muted)">${first.name.length>6?first.name.slice(0,6)+'…':first.name}</span>`;
   const grid=document.getElementById('cal-grid');grid.innerHTML='';
   const today=new Date();
   let sd=new Date(curYear,curMonth,1).getDay();sd=sd===0?6:sd-1;
@@ -562,16 +563,18 @@ function renderCalendar(){
     const el=document.createElement('div');el.className='cal-day';
     if(today.getFullYear()===curYear&&today.getMonth()===curMonth&&today.getDate()===d)el.classList.add('today');
     const dd=state[dayKey(curYear,curMonth,d)];
-    let mainHTML='',pctHTML='';
+    let inner='';
     if(dd&&dd.routines&&dd.routines.length>0){
       const fr=dd.routines[0];
-      const total=dd.routines.length;
-      const done=dd.routines.filter(r=>r.done||(r.countMode&&r.count>0&&r.count>=r.target)).length;
-      const pct=Math.round(done/total*100);
-      mainHTML=`<span class="day-main-icon">${fr.icon}</span>`;
-      pctHTML=`<span class="day-pct${pct===0?' zero':''}">${pct}%</span>`;
+      const memo=fr.memo&&fr.memo.trim()?fr.memo.trim():'';
+      const done=fr.done||(fr.countMode&&(fr.count||0)>=1);
+      if(memo){
+        inner+=`<span class="day-memo-text">${memo}</span>`;
+      } else {
+        inner+=done?`<span class="day-done-dot"></span>`:'';
+      }
     }
-    el.innerHTML=`<span class="dn">${d}</span>${mainHTML}${pctHTML}`;
+    el.innerHTML=`<span class="dn">${d}</span>${inner}`;
     el.onclick=()=>openDay(d);
     grid.appendChild(el);
   }
@@ -608,10 +611,15 @@ window.moveDailyRoutine=moveDailyRoutine;
 function renderDailyRoutines(){
   const dd=getDay(curYear,curMonth,curDay);
   const list=document.getElementById('routines-list');list.innerHTML='';
+  const countIds=new Set(defaultRoutines.filter(r=>r.countMode).map(r=>r.id));
   dd.routines.forEach((r,i)=>{
+    const isCount=r.countMode||countIds.has(r.id);
+    const tgt=getMonthTarget(r.id,curYear,curMonth);
+    const cnt=r.count||0;
+    // 체크 여부: 카운트 루틴은 count>=1, 일반은 done
+    const checked=isCount?(cnt>=1):r.done;
     const wrap=document.createElement('div');wrap.className='r-item'+(sortMode?' sort-mode':'');
     const hasMemo=!!(r.memo&&r.memo.trim()),isEditOpen=(openMemoIdx===i&&!sortMode);
-    const isCount=!!r.countMode;
     const top=document.createElement('div');top.className='r-item-top';
     if(sortMode){
       top.innerHTML=`
@@ -622,38 +630,19 @@ function renderDailyRoutines(){
         <span class="r-icon" style="cursor:default">${r.icon}</span>
         <span class="r-name" style="cursor:default;color:var(--text-secondary)">${r.name}</span>
         <span style="font-size:11px;color:var(--text-muted);flex-shrink:0;">${i+1}순위</span>`;
-    }else if(isCount){
-      // 카운트 모드
-      const tgt=r.target||1,cnt=r.count||0;
-      const pct=Math.min(100,Math.round(cnt/tgt*100));
-      const reached=cnt>=tgt;
-      top.innerHTML=`
-        <span class="r-icon" style="cursor:default">${r.icon}</span>
-        <span class="r-name" style="cursor:default">${r.name}</span>
-        <div class="r-actions">
-          <button class="memo-btn ${hasMemo||isEditOpen?'has-memo':''}" aria-label="메모"><i class="ti ti-pencil"></i></button>
-          <button class="del-r-btn" aria-label="삭제"><i class="ti ti-x"></i></button>
-        </div>`;
-      top.querySelector('.memo-btn').onclick=(e)=>{e.stopPropagation();toggleMemoEdit(i);};
-      top.querySelector('.del-r-btn').onclick=(e)=>{e.stopPropagation();deleteRoutine(i);};
-      wrap.appendChild(top);
-      // 카운트 컨트롤 행
-      const cr=document.createElement('div');cr.className='count-row';
-      cr.innerHTML=`
-        <button class="count-btn" onclick="adjustCount(${i},-1)">−</button>
-        <span class="count-val" style="color:${reached?'var(--green)':'var(--text)'}">${cnt}</span>
-        <span class="count-target">/ ${tgt}</span>
-        <div class="count-bar-wrap"><div class="count-bar${cnt>tgt?' over':''}" style="width:${pct}%"></div></div>
-        <button class="count-btn" onclick="adjustCount(${i},1)" style="${reached?'border-color:var(--green);color:var(--green)':''}">+</button>`;
-      wrap.appendChild(cr);
-    }else{
+    } else {
+      // 카운트 루틴: 체크 + 카운트 숫자 표시
+      const countBadge=isCount
+        ?`<span style="font-size:11px;color:${cnt>=tgt?'var(--green)':'var(--text-muted)'};min-width:32px;text-align:right;flex-shrink:0;">${cnt}/${tgt}</span>`
+        :'';
       top.innerHTML=`
         <span class="r-icon">${r.icon}</span>
         <span class="r-name">${r.name}</span>
         <div class="r-actions">
+          ${countBadge}
           <button class="memo-btn ${hasMemo||isEditOpen?'has-memo':''}" aria-label="메모"><i class="ti ti-pencil"></i></button>
           <button class="del-r-btn" aria-label="삭제"><i class="ti ti-x"></i></button>
-          <div class="check-circle ${r.done?'done':''}">${r.done?'<i class="ti ti-check" style="font-size:12px"></i>':''}</div>
+          <div class="check-circle ${checked?'done':''}">${checked?'<i class="ti ti-check" style="font-size:12px"></i>':''}</div>
         </div>`;
       top.querySelector('.check-circle').onclick=()=>toggleDone(i);
       top.querySelector('.r-name').onclick=()=>toggleDone(i);
@@ -661,7 +650,7 @@ function renderDailyRoutines(){
       top.querySelector('.memo-btn').onclick=(e)=>{e.stopPropagation();toggleMemoEdit(i);};
       top.querySelector('.del-r-btn').onclick=(e)=>{e.stopPropagation();deleteRoutine(i);};
     }
-    if(!isCount) wrap.appendChild(top);
+    wrap.appendChild(top);
     if(!sortMode){
       if(hasMemo&&!isEditOpen){const disp=document.createElement('div');disp.className='r-memo-display';disp.textContent=r.memo;wrap.appendChild(disp);}
       const editWrap=document.createElement('div');editWrap.className='r-memo-edit'+(isEditOpen?' open':'');
@@ -678,18 +667,29 @@ function renderDailyRoutines(){
   updateProgress();
 }
 function toggleMemoEdit(i){openMemoIdx=(openMemoIdx===i)?-1:i;renderDailyRoutines();}
-function toggleDone(i){const dd=getDay(curYear,curMonth,curDay);dd.routines[i].done=!dd.routines[i].done;scheduleSave(dayKey(curYear,curMonth,curDay),dd);renderDailyRoutines();}
-function adjustCount(i,delta){
+function toggleDone(i){
   const dd=getDay(curYear,curMonth,curDay);
-  dd.routines[i].count=Math.max(0,(dd.routines[i].count||0)+delta);
+  const r=dd.routines[i];
+  const countIds=new Set(defaultRoutines.filter(r=>r.countMode).map(r=>r.id));
+  const isCount=r.countMode||countIds.has(r.id);
+  if(isCount){
+    // 카운트 루틴: 체크 = count+1, 이미 1이상이면 0으로 리셋
+    r.count=(r.count||0)>=1?0:(r.count||0)+1;
+    r.done=r.count>=1;
+  } else {
+    r.done=!r.done;
+  }
   scheduleSave(dayKey(curYear,curMonth,curDay),dd);renderDailyRoutines();
 }
-window.adjustCount=adjustCount;
 function deleteRoutine(i){const dd=getDay(curYear,curMonth,curDay);dd.routines.splice(i,1);if(openMemoIdx===i)openMemoIdx=-1;scheduleSave(dayKey(curYear,curMonth,curDay),dd);renderDailyRoutines();renderPresets();}
 function updateProgress(){
   const dd=getDay(curYear,curMonth,curDay);
+  const countIds=new Set(defaultRoutines.filter(r=>r.countMode).map(r=>r.id));
   const total=dd.routines.length;
-  const done=dd.routines.filter(r=>r.countMode?(r.count||0)>=(r.target||1):r.done).length;
+  const done=dd.routines.filter(r=>{
+    const isCount=r.countMode||countIds.has(r.id);
+    return isCount?(r.count||0)>=1:r.done;
+  }).length;
   const pct=total>0?Math.round(done/total*100):0;
   document.getElementById('prog-count').textContent=`달성 ${done}/${total}`;
   document.getElementById('prog-pct').textContent=`${pct}%`;
@@ -860,7 +860,7 @@ function renderYearStats(){
   }
 }
 
-/* ── 기본 루틴 편집 (이모지 직접 입력 + 카운트 설정) ── */
+/* ── 기본 루틴 편집 ── */
 function renderEditView(){editTemp=JSON.parse(JSON.stringify(defaultRoutines));renderEditList();}
 function renderEditList(){
   const list=document.getElementById('edit-list');list.innerHTML='';
@@ -878,16 +878,14 @@ function renderEditList(){
       <button class="del-btn" onclick="delEditR(${i})" aria-label="삭제"><i class="ti ti-trash"></i></button>
       <div style="width:100%;display:flex;align-items:center;gap:8px;padding-left:64px;">
         <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px;color:var(--text-secondary);">
-          <input type="checkbox" ${isCount?'checked':''} data-ci="${i}" style="accent-color:var(--green);width:14px;height:14px;" /> 횟수 카운트
+          <input type="checkbox" ${isCount?'checked':''} data-ci="${i}" style="accent-color:var(--green);width:14px;height:14px;" /> 횟수 카운트 (월목표에서 목표 설정)
         </label>
-        ${isCount?`<span class="e-target-label">목표</span><input class="e-target-input" type="number" min="1" max="999" value="${r.target||1}" data-ti="${i}" /><span class="e-target-label">회</span>`:''}
       </div>`;
     row.querySelector('.e-name-input').addEventListener('input',function(){editTemp[parseInt(this.dataset.i)].name=this.value;});
     row.querySelector('.e-icon-input').addEventListener('input',function(){editTemp[parseInt(this.dataset.i)].icon=this.value||'⭐';});
     row.querySelector('input[type="checkbox"]').addEventListener('change',function(){
-      const idx=parseInt(this.dataset.ci);editTemp[idx].countMode=this.checked;if(!this.checked)editTemp[idx].target=1;renderEditList();
+      const idx=parseInt(this.dataset.ci);editTemp[idx].countMode=this.checked;renderEditList();
     });
-    if(isCount){row.querySelector('.e-target-input').addEventListener('input',function(){editTemp[parseInt(this.dataset.ti)].target=Math.max(1,parseInt(this.value)||1);});}
     list.appendChild(row);
   });
 }
@@ -975,7 +973,7 @@ function buildPrintArea(keys){
     if(dd.gratitude&&dd.gratitude.trim()){
       html+=`<div class="p-section-title">🙏 감사일기</div><div class="p-gratitude">${escapeHtml(dd.gratitude)}</div>`;
     }
-    html+=`<div class="p-footer">Rae's Diary · ${label}</div></div>`;
+    html+=`<div class="p-footer">루틴 다이어리 · ${label}</div></div>`;
   });
   target.innerHTML=html;
 }
