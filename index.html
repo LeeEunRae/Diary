@@ -9,9 +9,9 @@
 :root{--bg:#fff;--surface:#f7f7f5;--surface2:#efefed;--border:rgba(0,0,0,.1);--border-strong:rgba(0,0,0,.18);--text:#1a1a18;--text-secondary:#5f5e5a;--text-muted:#888780;--accent:#378ADD;--green:#1D9E75;--red:#E24B4A;--radius:8px;}
 @media(prefers-color-scheme:dark){:root{--bg:#1c1c1a;--surface:#252523;--surface2:#2e2e2b;--border:rgba(255,255,255,.1);--border-strong:rgba(255,255,255,.18);--text:#f0ede8;--text-secondary:#b4b2a9;--text-muted:#888780;}}
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;}
-.app{max-width:480px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column;}
-.view{display:none;flex:1;flex-direction:column;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);height:100vh;height:100dvh;overflow:hidden;}
+.app{max-width:480px;margin:0 auto;height:100vh;height:100dvh;display:flex;flex-direction:column;overflow:hidden;}
+.view{display:none;flex:1;flex-direction:column;min-height:0;overflow:hidden;}
 .view.active{display:flex;}
 
 /* 동기화 배너 */
@@ -66,7 +66,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .prog-label{display:flex;justify-content:space-between;font-size:12px;color:var(--text-secondary);margin-bottom:5px;}
 .prog-track{height:4px;background:var(--surface2);border-radius:2px;overflow:hidden;}
 .prog-fill{height:100%;background:var(--green);border-radius:2px;transition:width .3s;}
-.routines-list{overflow-y:auto;}
+.routines-list{}
 .r-item{border-bottom:.5px solid var(--border);}
 .r-item-top{display:flex;align-items:center;gap:10px;padding:10px 1rem;}
 .r-item.sort-mode{background:var(--surface);}
@@ -262,13 +262,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 <div class="app">
 
 <!-- 캘린더 -->
-<div id="view-cal" class="view active">
-  <div class="sync-banner" id="sync-banner" onclick="manualRefresh()">
+<div id="view-cal" class="view active" style="flex-direction:column;min-height:0;">
+  <div class="sync-banner" id="sync-banner" onclick="manualRefresh()" style="flex-shrink:0;">
     <div class="sync-dot" id="sync-dot"></div>
     <span id="sync-text">연결 중…</span>
     <i class="ti ti-refresh" style="font-size:13px;margin-left:2px;opacity:.6;"></i>
   </div>
-  <div class="cal-header">
+  <div class="cal-header" style="flex-shrink:0;">
     <span class="cal-title" id="cal-title"></span>
     <div class="cal-nav">
       <span class="cal-legend" id="cal-legend"></span>
@@ -277,12 +277,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       <button class="nb" onclick="changeMonth(1)"><i class="ti ti-chevron-right"></i></button>
     </div>
   </div>
-  <div class="weekday-row">
-    <div class="wd">월</div><div class="wd">화</div><div class="wd">수</div><div class="wd">목</div>
-    <div class="wd">금</div><div class="wd" style="color:var(--red)">토</div><div class="wd" style="color:var(--red)">일</div>
+  <div class="weekday-row" style="flex-shrink:0;">
+    <div class="wd" style="color:var(--red)">일</div><div class="wd">월</div><div class="wd">화</div><div class="wd">수</div><div class="wd">목</div>
+    <div class="wd">금</div><div class="wd" style="color:var(--red)">토</div>
   </div>
-  <div class="cal-grid" id="cal-grid"></div>
-  <div class="tab-bar">
+  <div style="flex:1;overflow-y:auto;min-height:0;">
+    <div class="cal-grid" id="cal-grid"></div>
+  </div>
+  <div class="tab-bar" style="flex-shrink:0;">
     <button class="tab-btn active" onclick="showView('cal')"><i class="ti ti-calendar"></i>캘린더</button>
     <button class="tab-btn" onclick="showView('grow')"><i class="ti ti-plant"></i>성장</button>
     <button class="tab-btn" onclick="showView('stats')"><i class="ti ti-chart-bar"></i>통계</button>
@@ -291,31 +293,34 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 </div>
 
 <!-- 데일리 -->
-<div id="view-daily" class="view" style="position:relative;">
-  <div class="hd">
+<div id="view-daily" class="view" style="flex-direction:column;min-height:0;">
+  <div class="hd" style="flex-shrink:0;">
     <button class="ib" onclick="showView('cal')"><i class="ti ti-arrow-left"></i></button>
     <span class="hd-title" id="daily-date-label"></span>
     <button class="icon-txt-btn" id="sort-toggle-btn" onclick="toggleSortMode()"><i class="ti ti-arrows-sort"></i>순서</button>
     <button class="icon-txt-btn" onclick="openPdfModal('day')"><i class="ti ti-file-type-pdf"></i>PDF</button>
   </div>
-  <div class="prog-wrap">
+  <div class="prog-wrap" style="flex-shrink:0;">
     <div class="prog-label"><span id="prog-count">달성 0/0</span><span id="prog-pct" style="color:var(--green);font-weight:500">0%</span></div>
     <div class="prog-track"><div class="prog-fill" id="prog-fill" style="width:0%"></div></div>
   </div>
-  <div class="routines-list" id="routines-list"></div>
-  <div class="add-routine-bar">
-    <div class="preset-scroll" id="preset-scroll"></div>
-    <button class="custom-add-btn" onclick="toggleCustomInput()"><i class="ti ti-plus"></i></button>
-  </div>
-  <div class="custom-input-row" id="custom-input-row">
-    <input class="ci-icon-input" id="ci-icon-input" maxlength="2" placeholder="🙂" />
-    <input class="ci-name" id="ci-name" placeholder="루틴 이름 입력" onkeydown="if(event.key==='Enter')addCustomRoutine()" />
-    <button class="ci-ok" onclick="addCustomRoutine()"><i class="ti ti-check"></i></button>
-  </div>
-  <div class="g-section">
-    <div class="g-label"><i class="ti ti-heart" style="font-size:14px;color:#D4537E"></i>감사일기</div>
-    <textarea class="g-textarea" id="gratitude-text" placeholder="오늘 감사한 일을 자유롭게 적어보세요…" rows="6"></textarea>
-    <button class="primary-btn" onclick="saveDay()">저장</button>
+  <div id="daily-scroll" style="flex:1;overflow-y:auto;overflow-x:hidden;min-height:0;-webkit-overflow-scrolling:touch;">
+    <div id="routines-list"></div>
+    <div class="add-routine-bar" style="flex-shrink:0;">
+      <div class="preset-scroll" id="preset-scroll"></div>
+      <button class="custom-add-btn" onclick="toggleCustomInput()"><i class="ti ti-plus"></i></button>
+    </div>
+    <div class="custom-input-row" id="custom-input-row">
+      <input class="ci-icon-input" id="ci-icon-input" maxlength="2" placeholder="🙂" />
+      <input class="ci-name" id="ci-name" placeholder="루틴 이름 입력" onkeydown="if(event.key==='Enter')addCustomRoutine()" />
+      <button class="ci-ok" onclick="addCustomRoutine()"><i class="ti ti-check"></i></button>
+    </div>
+    <div class="g-section">
+      <div class="g-label"><i class="ti ti-heart" style="font-size:14px;color:#D4537E"></i>감사일기</div>
+      <textarea class="g-textarea" id="gratitude-text" placeholder="오늘 감사한 일을 자유롭게 적어보세요…" rows="6"></textarea>
+      <button class="primary-btn" onclick="saveDay()">저장</button>
+    </div>
+    <div style="height:32px;"></div>
   </div>
 </div>
 
@@ -329,6 +334,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     <button class="grow-tab active" id="gtab-week" onclick="setGrowTab('week')">주간 목표</button>
     <button class="grow-tab" id="gtab-qyear" onclick="setGrowTab('qyear')">분기·연간</button>
     <button class="grow-tab" id="gtab-review" onclick="setGrowTab('review')">월간 회고</button>
+    <button class="grow-tab" id="gtab-imsang" onclick="setGrowTab('imsang')">임장</button>
   </div>
   <!-- 주간 목표 -->
   <div id="gpanel-week" class="grow-scroll" style="display:flex;flex-direction:column;">
@@ -403,6 +409,22 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       <button class="grow-save-btn" onclick="saveReview()">저장</button>
     </div>
   </div>
+  <!-- 임장 기록 -->
+  <div id="gpanel-imsang" class="grow-scroll" style="display:none;flex-direction:column;">
+    <div class="review-nav-row">
+      <button class="nb" onclick="imsangPrev()"><i class="ti ti-chevron-left"></i></button>
+      <span class="review-label" id="imsang-label"></span>
+      <button class="nb" onclick="imsangNext()"><i class="ti ti-chevron-right"></i></button>
+    </div>
+    <div class="grow-section">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+        <div class="grow-section-title" style="margin-bottom:0;">이달 임장 목록</div>
+        <button onclick="addImsang()" style="display:flex;align-items:center;gap:4px;padding:6px 12px;border-radius:var(--radius);border:none;background:var(--green);color:#fff;font-size:13px;cursor:pointer;font-family:inherit;"><i class="ti ti-plus" style="font-size:14px"></i>임장 추가</button>
+      </div>
+      <div id="imsang-list"></div>
+    </div>
+  </div>
+
   <div class="tab-bar">
     <button class="tab-btn" onclick="showView('cal')"><i class="ti ti-calendar"></i>캘린더</button>
     <button class="tab-btn active" onclick="showView('grow')"><i class="ti ti-plant"></i>성장</button>
@@ -411,6 +433,56 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   </div>
 </div>
 
+<!-- 임장 모달 -->
+<div id="imsang-modal-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;align-items:flex-end;justify-content:center;">
+  <div style="background:var(--bg);border-radius:16px 16px 0 0;width:100%;max-width:480px;max-height:85vh;display:flex;flex-direction:column;box-shadow:0 -4px 24px rgba(0,0,0,.15);">
+    <div style="display:flex;align-items:center;gap:8px;padding:1rem 1rem .75rem;border-bottom:.5px solid var(--border);flex-shrink:0;">
+      <button class="ib" onclick="closeImsangModal()"><i class="ti ti-x"></i></button>
+      <span style="font-size:15px;font-weight:500;flex:1;" id="imsang-modal-title">임장 메모</span>
+      <button onclick="saveImsangMemo()" style="padding:6px 14px;border:none;border-radius:var(--radius);background:var(--green);color:#fff;font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;">저장</button>
+    </div>
+    <div style="flex:1;overflow-y:auto;padding:1rem;">
+      <div style="margin-bottom:12px;">
+        <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px;">📍 지역 / 단지명</div>
+        <input id="imsang-modal-place" style="width:100%;border:.5px solid var(--border);border-radius:var(--radius);background:var(--surface);color:var(--text);font-family:inherit;font-size:14px;padding:8px 12px;height:38px;" placeholder="예: 동작구 상도 래미안" />
+      </div>
+      <div style="margin-bottom:12px;">
+        <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px;">📅 방문일</div>
+        <input id="imsang-modal-date" type="date" style="width:100%;border:.5px solid var(--border);border-radius:var(--radius);background:var(--surface);color:var(--text);font-family:inherit;font-size:14px;padding:8px 12px;height:38px;" />
+      </div>
+      <div style="margin-bottom:12px;">
+        <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px;">🏠 단지 특징 / 입지</div>
+        <textarea id="imsang-modal-feature" style="width:100%;border:.5px solid var(--border);border-radius:var(--radius);background:var(--surface);color:var(--text);font-family:inherit;font-size:14px;line-height:1.6;padding:10px 12px;resize:none;min-height:80px;" placeholder="역세권, 학군, 직주근접, 브랜드, 세대수…"></textarea>
+      </div>
+      <div style="margin-bottom:12px;">
+        <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px;">💰 시세 / 갭</div>
+        <textarea id="imsang-modal-price" style="width:100%;border:.5px solid var(--border);border-radius:var(--radius);background:var(--surface);color:var(--text);font-family:inherit;font-size:14px;line-height:1.6;padding:10px 12px;resize:none;min-height:60px;" placeholder="매매 OO억, 전세 OO억, 갭 OO억…"></textarea>
+      </div>
+      <div style="margin-bottom:12px;">
+        <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px;">✍️ 세부 메모</div>
+        <textarea id="imsang-modal-memo" style="width:100%;border:.5px solid var(--border);border-radius:var(--radius);background:var(--surface);color:var(--text);font-family:inherit;font-size:14px;line-height:1.6;padding:10px 12px;resize:none;min-height:100px;" placeholder="현장에서 느낀 것, 공인중개사 말, 주변 상권, 분위기…"></textarea>
+      </div>
+      <div>
+        <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px;">🎯 결론</div>
+        <div style="display:flex;gap:8px;">
+          <button onclick="setVerdict('긍정')" id="vbtn-긍정" style="flex:1;padding:8px;border-radius:var(--radius);border:.5px solid var(--border);background:transparent;cursor:pointer;font-size:13px;font-family:inherit;">👍 긍정</button>
+          <button onclick="setVerdict('보류')" id="vbtn-보류" style="flex:1;padding:8px;border-radius:var(--radius);border:.5px solid var(--border);background:transparent;cursor:pointer;font-size:13px;font-family:inherit;">🤔 보류</button>
+          <button onclick="setVerdict('패스')" id="vbtn-패스" style="flex:1;padding:8px;border-radius:var(--radius);border:.5px solid var(--border);background:transparent;cursor:pointer;font-size:13px;font-family:inherit;">❌ 패스</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      <div style="display:flex;align-items:center;gap:8px;padding:1rem 1rem .75rem;border-bottom:.5px solid var(--border);flex-shrink:0;">
+        <button class="ib" onclick="closeImsangModal()"><i class="ti ti-x"></i></button>
+        <span style="font-size:15px;font-weight:500;flex:1;" id="imsang-modal-title">임장 메모</span>
+        <button onclick="saveImsangMemo()" style="padding:6px 14px;border:none;border-radius:var(--radius);background:var(--green);color:#fff;font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;">저장</button>
+      </div>
+      <div style="flex:1;overflow-y:auto;padding:1rem;">
+        <div style="margin-bottom:12px;">
+          <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px;">📍 지역 / 단지명</div>
+          <input id="imsang-modal-place" style="width:100%;border:.5px solid var(--border);border-radius:var(--radius);background:var(--surface);color:var(--text);font-family:inherit;font-size:14px;padding:8px 12px;height:38px;" placeholder="예: 동작구 상도 래미안" />
+        </div>
 <!-- 통계 -->
 <div id="view-stats" class="view">
   <div class="stats-hd">
@@ -530,6 +602,7 @@ let state={},defaultRoutines=[],editTemp=[],monthGoals={},growData={};
 let curYear,curMonth,curDay,openMemoIdx=-1,pdfScope='month',saveTimer=null,sortMode=false;
 let statsScope='month',statsYear,statsMonth;
 let growTab='week',curWeekMon,curYearGoal,curQuarter,reviewYear,reviewMonth;
+let imsangYear,imsangMonth,curImsangIdx=-1,curImsangVerdict='';
 
 /* ── 동기화 ── */
 function setSyncStatus(s){
@@ -615,7 +688,8 @@ function renderCalendar(){
   if(first)leg.textContent=first.name.length>6?first.name.slice(0,6)+'…':first.name;
   const grid=document.getElementById('cal-grid');grid.innerHTML='';
   const today=new Date();
-  let sd=new Date(curYear,curMonth,1).getDay();sd=sd===0?6:sd-1;
+  // 일요일 시작: getDay() 그대로 사용 (0=일,1=월…6=토)
+  const sd=new Date(curYear,curMonth,1).getDay();
   const days=new Date(curYear,curMonth+1,0).getDate();
   for(let i=0;i<sd;i++){const el=document.createElement('div');el.className='cal-day empty';el.innerHTML='<span class="dn"></span>';grid.appendChild(el);}
   for(let d=1;d<=days;d++){
@@ -900,8 +974,8 @@ function reviewKey(y,m){return`review-${y}-${String(m+1).padStart(2,'0')}`;}
 
 function setGrowTab(t){
   growTab=t;
-  ['week','qyear','review'].forEach(n=>{document.getElementById('gtab-'+n).classList.toggle('active',n===t);const p=document.getElementById('gpanel-'+n);p.style.display=n===t?'flex':'none';});
-  if(t==='week')renderWeekGoal();if(t==='qyear')renderQYearGoals();if(t==='review')renderReview();
+  ['week','qyear','review','imsang'].forEach(n=>{document.getElementById('gtab-'+n).classList.toggle('active',n===t);const p=document.getElementById('gpanel-'+n);p.style.display=n===t?'flex':'none';});
+  if(t==='week')renderWeekGoal();if(t==='qyear')renderQYearGoals();if(t==='review')renderReview();if(t==='imsang')renderImsang();
 }
 window.setGrowTab=setGrowTab;
 function renderGrowView(){setGrowTab(growTab);}
@@ -1034,12 +1108,118 @@ window.closePdfModal=closePdfModal;
 function doPrint(){closePdfModal();requestAnimationFrame(()=>requestAnimationFrame(()=>window.print()));}
 window.doPrint=doPrint;
 
+/* ── 임장 기록 ── */
+let imsangYear, imsangMonth, curImsangIdx=-1, curImsangVerdict='';
+function imsangKey(y,m){return`imsang-${y}-${String(m+1).padStart(2,'0')}`;}
+
+function renderImsang(){
+  document.getElementById('imsang-label').textContent=`${imsangYear}년 ${MO[imsangMonth]} 임장`;
+  const k=imsangKey(imsangYear,imsangMonth);
+  const list=growData[k]||{items:[]};
+  const el=document.getElementById('imsang-list');el.innerHTML='';
+  if(!list.items||!list.items.length){
+    el.innerHTML='<div style="text-align:center;padding:2rem 0;font-size:13px;color:var(--text-muted);">이달 임장 기록이 없어요<br>임장 추가 버튼을 눌러주세요</div>';
+    return;
+  }
+  list.items.forEach((item,i)=>{
+    const verdictColor={'긍정':'var(--green)','보류':'#F5A623','패스':'var(--red)'}[item.verdict]||'var(--text-muted)';
+    const verdictEmoji={'긍정':'👍','보류':'🤔','패스':'❌'}[item.verdict]||'';
+    const card=document.createElement('div');
+    card.style.cssText='background:var(--surface);border-radius:var(--radius);padding:12px;margin-bottom:10px;cursor:pointer;border:.5px solid var(--border);';
+    card.innerHTML=`
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;">
+        <div style="flex:1;">
+          <div style="font-size:14px;font-weight:500;color:var(--text);">${item.place||'지역 미입력'}</div>
+          ${item.date?`<div style="font-size:11px;color:var(--text-muted);margin-top:2px;">📅 ${item.date}</div>`:''}
+          ${item.verdict?`<div style="font-size:12px;color:${verdictColor};margin-top:4px;">${verdictEmoji} ${item.verdict}</div>`:''}
+          ${item.price?`<div style="font-size:12px;color:var(--text-secondary);margin-top:3px;">💰 ${item.price.replace(/\n/g,' ')}</div>`:''}
+        </div>
+        <button onclick="event.stopPropagation();delImsang(${i})" style="width:24px;height:24px;border:none;background:transparent;cursor:pointer;color:var(--text-muted);font-size:15px;flex-shrink:0;display:flex;align-items:center;justify-content:center;"><i class="ti ti-x"></i></button>
+      </div>
+      ${item.memo?`<div style="margin-top:8px;font-size:13px;color:var(--text-secondary);line-height:1.5;border-top:.5px solid var(--border);padding-top:8px;">${item.memo}</div>`:''}`;
+    card.onclick=()=>openImsangModal(i);
+    el.appendChild(card);
+  });
+}
+
+function addImsang(){openImsangModal(-1);}
+window.addImsang=addImsang;
+
+function openImsangModal(idx){
+  curImsangIdx=idx;
+  const k=imsangKey(imsangYear,imsangMonth);
+  const list=growData[k]||{items:[]};
+  const item=idx>=0?list.items[idx]:{};
+  document.getElementById('imsang-modal-title').textContent=idx>=0?'임장 수정':'임장 추가';
+  document.getElementById('imsang-modal-place').value=item.place||'';
+  document.getElementById('imsang-modal-date').value=item.date||`${imsangYear}-${String(imsangMonth+1).padStart(2,'0')}-01`;
+  document.getElementById('imsang-modal-feature').value=item.feature||'';
+  document.getElementById('imsang-modal-price').value=item.price||'';
+  document.getElementById('imsang-modal-memo').value=item.memo||'';
+  curImsangVerdict=item.verdict||'';
+  updateVerdictUI();
+  document.getElementById('imsang-modal-overlay').style.display='flex';
+  setTimeout(()=>document.getElementById('imsang-modal-place').focus(),100);
+}
+window.openImsangModal=openImsangModal;
+
+function closeImsangModal(){document.getElementById('imsang-modal-overlay').style.display='none';}
+window.closeImsangModal=closeImsangModal;
+
+function setVerdict(v){curImsangVerdict=(curImsangVerdict===v)?'':v;updateVerdictUI();}
+window.setVerdict=setVerdict;
+
+function updateVerdictUI(){
+  ['긍정','보류','패스'].forEach(v=>{
+    const btn=document.getElementById('vbtn-'+v);
+    if(!btn)return;
+    const colors={'긍정':'var(--green)','보류':'#F5A623','패스':'var(--red)'};
+    btn.style.background=curImsangVerdict===v?colors[v]:'transparent';
+    btn.style.color=curImsangVerdict===v?'#fff':'var(--text-secondary)';
+    btn.style.borderColor=curImsangVerdict===v?colors[v]:'var(--border)';
+  });
+}
+
+async function saveImsangMemo(){
+  const k=imsangKey(imsangYear,imsangMonth);
+  if(!growData[k])growData[k]={items:[]};
+  const item={
+    place:document.getElementById('imsang-modal-place').value.trim(),
+    date:document.getElementById('imsang-modal-date').value,
+    feature:document.getElementById('imsang-modal-feature').value.trim(),
+    price:document.getElementById('imsang-modal-price').value.trim(),
+    memo:document.getElementById('imsang-modal-memo').value.trim(),
+    verdict:curImsangVerdict,
+    savedAt:new Date().toISOString()
+  };
+  if(curImsangIdx>=0)growData[k].items[curImsangIdx]=item;
+  else growData[k].items.push(item);
+  await saveGrowEntry(k,growData[k]);
+  closeImsangModal();renderImsang();
+}
+window.saveImsangMemo=saveImsangMemo;
+
+async function delImsang(i){
+  if(!confirm('이 임장 기록을 삭제할까요?'))return;
+  const k=imsangKey(imsangYear,imsangMonth);
+  if(!growData[k])return;
+  growData[k].items.splice(i,1);
+  await saveGrowEntry(k,growData[k]);
+  renderImsang();
+}
+window.delImsang=delImsang;
+
+function imsangPrev(){imsangMonth--;if(imsangMonth<0){imsangYear--;imsangMonth=11;}renderImsang();}
+function imsangNext(){imsangMonth++;if(imsangMonth>11){imsangYear++;imsangMonth=0;}renderImsang();}
+window.imsangPrev=imsangPrev;window.imsangNext=imsangNext;
+
 /* ── 초기화 ── */
 const now=new Date();
 curYear=now.getFullYear();curMonth=now.getMonth();
 statsYear=now.getFullYear();statsMonth=now.getMonth();
 curWeekMon=getMonday(now);curYearGoal=now.getFullYear();curQuarter=Math.floor(now.getMonth()/3)+1;
 reviewYear=now.getFullYear();reviewMonth=now.getMonth();
+imsangYear=now.getFullYear();imsangMonth=now.getMonth();
 setSyncStatus('syncing');loadFromFirebase();
 </script>
 </body>
